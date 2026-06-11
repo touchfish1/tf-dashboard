@@ -10,6 +10,9 @@ services:
       - METRICS_PORT=9100
       - METRICS_HOST=0.0.0.0
     restart: unless-stopped
+    labels:
+      - "app=tf-dashboard"
+      - "component=agent"
 
   # Dashboard Server（后端 API + 前端静态页面）
   server:
@@ -26,4 +29,13 @@ services:
       - POLL_SERVERS_INTERVAL=30
       - POLL_OPENCODE_INTERVAL=60
       - POLL_DEEPSEEK_INTERVAL=300
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
+    labels:
+      - "app=tf-dashboard"
+      - "component=server"
