@@ -58,6 +58,13 @@ function formatChartTime(iso: string, range: TimeRange): string {
   });
 }
 
+function formatBytes(bytes: number): string {
+  if (!bytes) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+}
+
 function formatTooltipTime(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString("en-US", {
@@ -432,7 +439,7 @@ export default function ServerPage() {
             </p>
           </CardContent>
         </Card>
-      ) : (
+      ) : (<>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           {/* CPU Usage Chart */}
           <Card>
@@ -546,7 +553,105 @@ export default function ServerPage() {
             </CardContent>
           </Card>
         </div>
-      )}
+
+        {/* ── CPU Load & Network I/O ──────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          {/* CPU Load Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>CPU Load</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="load1Grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="load5Grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis
+                    dataKey="collectedAt"
+                    tickFormatter={(v: string) => formatChartTime(v, timeRange)}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+                    axisLine={{ stroke: "var(--border)" }}
+                    tickLine={false}
+                    minTickGap={40}
+                  />
+                  <YAxis
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+                    axisLine={{ stroke: "var(--border)" }}
+                    tickLine={false}
+                    width={40}
+                  />
+                  <Tooltip
+                    labelFormatter={(label) => formatTooltipTime(label as string)}
+                    formatter={(value) => [Number(value).toFixed(2), "Load"]}
+                    contentStyle={CHART_TOOLTIP_STYLES.content}
+                    labelStyle={CHART_TOOLTIP_STYLES.label}
+                    itemStyle={CHART_TOOLTIP_STYLES.item}
+                  />
+                  <Area type="monotone" dataKey="cpuLoad1m" stroke="#f59e0b" strokeWidth={1.5} fill="url(#load1Grad)" dot={false} activeDot={{ r: 3, fill: "#f59e0b" }} />
+                  <Area type="monotone" dataKey="cpuLoad5m" stroke="#10b981" strokeWidth={1.5} fill="url(#load5Grad)" dot={false} activeDot={{ r: 3, fill: "#10b981" }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Network I/O Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Network I/O</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="rxGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="txGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis
+                    dataKey="collectedAt"
+                    tickFormatter={(v: string) => formatChartTime(v, timeRange)}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+                    axisLine={{ stroke: "var(--border)" }}
+                    tickLine={false}
+                    minTickGap={40}
+                  />
+                  <YAxis
+                    tickFormatter={(v: number) => formatBytes(v)}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                    axisLine={{ stroke: "var(--border)" }}
+                    tickLine={false}
+                    width={60}
+                  />
+                  <Tooltip
+                    labelFormatter={(label) => formatTooltipTime(label as string)}
+                    formatter={(value) => [formatBytes(value as number), ""]}
+                    contentStyle={CHART_TOOLTIP_STYLES.content}
+                    labelStyle={CHART_TOOLTIP_STYLES.label}
+                    itemStyle={CHART_TOOLTIP_STYLES.item}
+                  />
+                  <Area type="monotone" dataKey="networkRxBytes" name="RX" stroke="#3b82f6" strokeWidth={1.5} fill="url(#rxGrad)" dot={false} activeDot={{ r: 3, fill: "#3b82f6" }} />
+                  <Area type="monotone" dataKey="networkTxBytes" name="TX" stroke="#8b5cf6" strokeWidth={1.5} fill="url(#txGrad)" dot={false} activeDot={{ r: 3, fill: "#8b5cf6" }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      </>)}
 
       {/* ── Disk & System Info ────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
