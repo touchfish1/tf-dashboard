@@ -31,6 +31,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import RefreshButton from "@/components/RefreshButton";
 
 // ─── Helpers ─────────────────────────────────────
 
@@ -336,9 +337,10 @@ const tooltipLabelStyle: React.CSSProperties = {
 export default function OpenCodePage() {
   const [days, setDays] = useState<TimeRange>(7);
   const [data, setData] = useState<OpenCodeUsage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [retry, setRetry] = useState(0);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState<string | null>(null);
+const [retry, setRetry] = useState(0);
+const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir | null>(null);
@@ -352,7 +354,7 @@ export default function OpenCodePage() {
     setPage(0);
     opencodeApi
       .usageRaw(days, 200)
-      .then((res) => setData(res))
+      .then((res) => { setData(res); setLastUpdate(new Date()); })
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   }, [days, retry]);
@@ -489,6 +491,11 @@ export default function OpenCodePage() {
       <header className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-xl font-bold text-foreground">OpenCode Usage</h1>
         <div className="flex items-center gap-2">
+          <RefreshButton
+            onClick={() => { setLoading(true); setRetry((c) => c + 1); }}
+            loading={loading}
+            lastUpdated={lastUpdate}
+          />
           <Button
             variant="outline"
             size="xs"
