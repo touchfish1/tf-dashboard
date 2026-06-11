@@ -62,6 +62,9 @@ router.get("/by-model", async (c) => {
     cost: sql<string>`COALESCE(SUM(cost::numeric),0)`,
     tokensInput: sql<number>`COALESCE(SUM(tokens_input),0)`,
     tokensOutput: sql<number>`COALESCE(SUM(tokens_output),0)`,
+    tokensCacheRead: sql<number>`COALESCE(SUM(tokens_cache_read),0)`,
+    tokensCacheWrite: sql<number>`COALESCE(SUM(tokens_cache_write),0)`,
+    sessionCount: sql<number>`COALESCE(SUM(session_count),0)`,
   })
     .from(opencodeUsage)
     .where(sql`bucket_start >= NOW() - INTERVAL '1 day' * ${q.days}`)

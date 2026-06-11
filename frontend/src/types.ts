@@ -78,6 +78,9 @@ export interface OpenCodeByModel {
   cost: string;
   tokensInput: number;
   tokensOutput: number;
+  tokensCacheRead: number;
+  tokensCacheWrite: number;
+  sessionCount: number;
 }
 
 export interface DashboardSection {
