@@ -26,7 +26,7 @@ interface TrackPayload {
   metadata?: Record<string, unknown>;
 }
 
-const SESSION_ID = crypto.randomUUID().slice(0, 8);
+const SESSION_ID = (self.crypto?.randomUUID?.() || Math.random().toString(36).slice(2, 10)).slice(0, 8);
 let pageLoadTime = performance.now();
 
 /**
