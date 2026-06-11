@@ -1,13 +1,11 @@
 import { Platform, Dimensions } from 'react-native'
 import Constants from 'expo-constants'
+import { api } from '@tf-dashboard/shared/api/client'
 
-// ─── Platform detection ─────────────────────────────
-const OS = Platform.OS // 'ios' | 'android' | 'web'
-
-/** "app" = native, "app_h5" = React Native Web export, "web" = Vite web */
+// ─── Platform ───────────────────────────────────────
+const OS = Platform.OS
 export type TrackSource = 'app' | 'app_h5' | 'web'
 
-/** User-readable device description */
 function deviceDesc(): string {
   if (OS === 'web') {
     try {
@@ -21,41 +19,24 @@ function deviceDesc(): string {
       return 'Web'
     } catch { return 'Web' }
   }
-  if (OS === 'ios') return 'iOS App'
-  if (OS === 'android') return 'Android App'
-  return 'App'
+  return OS === 'ios' ? 'iOS App' : OS === 'android' ? 'Android App' : 'App'
 }
 
-// ─── Env info ────────────────────────────────────────
+// ─── Env ────────────────────────────────────────────
 export interface TrackEnv {
-  source: TrackSource
-  sessionId: string
-  platform: string
-  osVersion: string
-  device: string
-  screen: string
-  appVersion: string
-  timezone: string
-  locale: string
-  /** Browser UA — only on web */
+  source: TrackSource; sessionId: string; platform: string; osVersion: string
+  device: string; screen: string; appVersion: string; timezone: string; locale: string
   userAgent?: string
-}
-
-function genId(): string {
-  return Math.random().toString(36).slice(2, 10)
 }
 
 function collectEnv(): TrackEnv {
   const dim = Dimensions.get('window')
   const isWeb = OS === 'web'
-  const source: TrackSource = isWeb ? 'app_h5' : 'app'
-
   let ua: string | undefined
   try { ua = isWeb ? navigator.userAgent?.slice(0, 200) : undefined } catch {}
-
   return {
-    source,
-    sessionId: genId(),
+    source: isWeb ? 'app_h5' : 'app',
+    sessionId: Math.random().toString(36).slice(2, 10),
     platform: OS,
     osVersion: Platform.Version?.toString() || '',
     device: deviceDesc(),
@@ -69,86 +50,87 @@ function collectEnv(): TrackEnv {
 
 const ENV = collectEnv()
 
-// ─── Event types ─────────────────────────────────────
-type TrackEvent = 'page_view' | 'action' | 'api_call' | 'error' | 'performance' | 'session'
+// ─── Event types ────────────────────────────────────
+export type TrackEvent = 'page_view' | 'action' | 'api_call' | 'error' | 'performance' | 'session'
 
 interface TrackPayload {
-  event: TrackEvent
-  category?: string
-  action?: string
-  label?: string
-  value?: number
-  path?: string
-  durationMs?: number
-  env: TrackEnv
+  event: TrackEvent; category?: string; action?: string; label?: string
+  value?: number; path?: string; durationMs?: number; env: TrackEnv
   metadata?: Record<string, unknown>
 }
 
-// ─── Send ────────────────────────────────────────────
-function send(payload: TrackPayload): void {
+// ─── Buffer & flush ─────────────────────────────────
+let buffer: TrackPayload[] = []
+let flushTimer: ReturnType<typeof setInterval> | null = null
+let flushIntervalMs = 30000 // default 30s
+let sessionStart = Date.now()
+
+function enqueue(payload: TrackPayload): void {
+  buffer.push(payload)
+}
+
+async function flush(): Promise<void> {
+  if (buffer.length === 0) return
+  const batch = buffer.splice(0, buffer.length)
   try {
-    const body = JSON.stringify({
-      level: 'info',
-      message: `[埋点] ${payload.event}${payload.action ? ':' + payload.action : ''}`,
-      data: payload,
-      source: 'mobile', // distinguishes from web frontend's "frontend" source
+    await api.post('/logs', {
+      batch: batch.map((p) => ({
+        level: 'info',
+        message: `[埋点] ${p.event}${p.action ? ':' + p.action : ''}`,
+        data: p,
+        source: 'mobile',
+      })),
     })
-    // Use fetch (fire-and-forget)
-    const url = '/api/logs'
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-      keepalive: true,
-    }).catch(() => {})
   } catch {
     // Never throw from tracking
   }
 }
 
-// ─── Public API ──────────────────────────────────────
-
-/** Page view — call on screen mount */
-export function trackPageView(path: string): void {
-  send({ event: 'page_view', path, env: ENV })
-}
-
-/** User action (button tap, nav, etc.) */
+// ─── Public API ─────────────────────────────────────
+export function trackPageView(path: string): void { enqueue({ event: 'page_view', path, env: ENV }) }
 export function trackAction(category: string, action: string, label?: string, metadata?: Record<string, unknown>): void {
-  send({ event: 'action', category, action, label, env: ENV, metadata })
+  enqueue({ event: 'action', category, action, label, env: ENV, metadata })
 }
-
-/** API call timing */
 export function trackApiCall(path: string, durationMs: number, status: number, method?: string): void {
-  send({ event: 'api_call', path, durationMs, value: status, env: ENV, metadata: { method } })
+  enqueue({ event: 'api_call', path, durationMs, value: status, env: ENV, metadata: { method } })
 }
-
-/** Performance metric */
 export function trackPerformance(name: string, valueMs: number): void {
-  send({ event: 'performance', action: name, value: valueMs, env: ENV })
+  enqueue({ event: 'performance', action: name, value: valueMs, env: ENV })
 }
-
-/** Error tracking */
 export function trackError(message: string, stack?: string): void {
-  send({ event: 'error', action: message, env: ENV, metadata: { stack } })
+  enqueue({ event: 'error', action: message, env: ENV, metadata: { stack } })
 }
 
-// ─── Session heartbeat ───────────────────────────────
-let timer: ReturnType<typeof setInterval> | null = null
-let sessionStart = Date.now()
+// ─── Session heartbeat (also triggers flush) ────────
+export async function startTracking(): Promise<void> {
+  // Fetch flush interval from backend settings
+  try {
+    const res = await api.get<{ value: string | null }>('/settings/tracking_interval')
+    if (res.data?.value) {
+      const parsed = parseInt(res.data.value, 10)
+      if (parsed >= 5000) flushIntervalMs = parsed
+    }
+  } catch {}
 
-export function startSessionTracking(): void {
-  timer = setInterval(() => {
+  // Periodic flush
+  flushTimer = setInterval(() => { flush() }, flushIntervalMs)
+
+  // Session heartbeat (every flush)
+  const hbInterval = setInterval(() => {
     const elapsed = Math.round((Date.now() - sessionStart) / 1000)
-    send({ event: 'session', action: 'heartbeat', value: elapsed, env: ENV })
-  }, 30000)
+    enqueue({ event: 'session', action: 'heartbeat', value: elapsed, env: ENV })
+  }, flushIntervalMs)
+  // Don't leak the timer ref — flushTimer cleanup also handles hb
+  ;(flushTimer as any)._hb = hbInterval
 }
 
-export function stopSessionTracking(): void {
-  if (timer) clearInterval(timer)
+export function stopTracking(): void {
+  if (flushTimer) {
+    clearInterval(flushTimer)
+    clearInterval((flushTimer as any)._hb)
+    flushTimer = null
+  }
+  flush() // flush remaining
 }
 
-/** Get the current env (for attaching to logs) */
-export function getTrackEnv(): TrackEnv {
-  return ENV
-}
+export function getTrackEnv(): TrackEnv { return ENV }

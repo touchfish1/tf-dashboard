@@ -8,7 +8,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { configureApi } from '@tf-dashboard/shared/api/client'
 import { api } from '@tf-dashboard/shared/api/client'
 import { useSettings } from '../src/store/settings'
-import { trackPageView, trackApiCall, startSessionTracking, stopSessionTracking } from '../src/lib/tracking'
+import { trackPageView, trackApiCall, startTracking, stopTracking } from '../src/lib/tracking'
 
 const DEFAULT_API_URL = process.env.EXPO_PUBLIC_API_URL || ''
 configureApi({ baseURL: `${DEFAULT_API_URL}/api` })
@@ -45,10 +45,9 @@ export default function RootLayout() {
   }, [loaded])
 
   // ─── Tracking ──────────────────────────────────────
-  // Session heartbeat
   useEffect(() => {
-    startSessionTracking()
-    return () => stopSessionTracking()
+    startTracking()
+    return () => stopTracking()
   }, [])
 
   // Page view on route change
