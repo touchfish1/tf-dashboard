@@ -15,6 +15,7 @@ import {
   CaretRight,
   HardDriveIcon,
 } from "@phosphor-icons/react";
+import { trackAction } from "../lib/tracking";
 import { serversApi } from "../api";
 import type { Server, ServerMetrics, ServerSummary } from "../types";
 import { cn } from "@/lib/utils";
@@ -428,6 +429,7 @@ export default function ServerPage() {
               variant="outline"
               size="xs"
               onClick={() => {
+                trackAction("服务器", "导出CSV");
                 const rows = metrics.map((m) => [
                   m.collectedAt,
                   m.cpuPercent, m.memoryPercent,
@@ -449,7 +451,7 @@ export default function ServerPage() {
               key={range}
               variant={timeRange === range ? "secondary" : "ghost"}
               size="xs"
-              onClick={() => setTimeRange(range)}
+              onClick={() => { trackAction("服务器", "切换时间范围", range); setTimeRange(range); }}
             >
               {range}
             </Button>
@@ -463,7 +465,7 @@ export default function ServerPage() {
         {servers.map((server) => (
           <button
             key={server.id}
-            onClick={() => navigate(`/server/${server.id}`)}
+            onClick={() => { trackAction("服务器", "切换标签", server.name); navigate(`/server/${server.id}`); }}
             className={cn(
               "relative px-4 py-2.5 text-sm transition-colors whitespace-nowrap",
               selectedId === server.id
@@ -490,7 +492,7 @@ export default function ServerPage() {
         <Button
           variant="ghost"
           size="icon-xs"
-          onClick={() => prevServer && navigate(`/server/${prevServer.id}`)}
+          onClick={() => { trackAction("服务器", "切换上下", prevServer?.name || ""); prevServer && navigate(`/server/${prevServer.id}`); }}
           disabled={!prevServer}
           aria-label="Previous server"
         >
@@ -510,7 +512,7 @@ export default function ServerPage() {
         <Button
           variant="ghost"
           size="icon-xs"
-          onClick={() => nextServer && navigate(`/server/${nextServer.id}`)}
+          onClick={() => { trackAction("服务器", "切换上下", nextServer?.name || ""); nextServer && navigate(`/server/${nextServer.id}`); }}
           disabled={!nextServer}
           aria-label="Next server"
         >

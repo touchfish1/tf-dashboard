@@ -11,18 +11,21 @@ import {
   Bell,
   Check,
   WarningCircle as WarningIcon,
+  ClipboardText,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Server as ServerType, Alert } from "./types";
 import { serversApi, alertsApi } from "./api";
+import { trackPageView, trackPerformance, trackAction } from "./lib/tracking";
 
 const NAV = [
   { to: "/dashboard", label: "总览", icon: ChartPieSlice },
   { to: "/opencode", label: "OpenCode", icon: Terminal },
   { to: "/deepseek", label: "DeepSeek", icon: Robot },
   { to: "/server", label: "服务器", icon: ComputerTower },
+  { to: "/audit", label: "审计", icon: ClipboardText },
   { to: "/settings", label: "设置", icon: GearSix },
 ];
 
@@ -39,6 +42,22 @@ export default function Layout() {
   useEffect(() => {
     serversApi.list().then(setServers).catch(() => {});
   }, []);
+  useEffect(() => {
+    trackPageView(loc.pathname);
+  }, [loc.pathname]);
+
+  // Track page load performance
+  useEffect(() => {
+    if (typeof window !== "undefined" && "performance" in window) {
+      const entries = performance.getEntriesByType("navigation");
+      if (entries.length > 0) {
+        const nav = entries[0] as PerformanceNavigationTiming;
+        trackPerformance("页面加载", Math.round(nav.loadEventEnd - nav.startTime));
+        trackPerformance("DOM就绪", Math.round(nav.domContentLoadedEventEnd - nav.startTime));
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const cb = (e: MouseEvent) => {
       if (dd.current && !dd.current.contains(e.target as Node)) setSrvOpen(false);
@@ -174,7 +193,7 @@ export default function Layout() {
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => setAlertOpen((v) => !v)}
+              onClick={() => { trackAction("导航", "查看通知"); setAlertOpen((v) => !v); }}
               className="relative"
             >
               <Bell size={16} />
@@ -193,6 +212,7 @@ export default function Layout() {
                       variant="ghost"
                       size="xs"
                       onClick={() => {
+                        trackAction("导航", "全部已读");
                         alertsApi.ackAll().then(() => {
                           setAlertsList([]);
                           setUnread(0);
@@ -226,6 +246,7 @@ export default function Layout() {
                           variant="ghost"
                           size="icon-xs"
                           onClick={() => {
+                            trackAction("导航", "标记已读", a.title);
                             alertsApi.ack(a.id).then(() => {
                               setAlertsList((prev) => prev.filter((x) => x.id !== a.id));
                               setUnread((u) => Math.max(0, u - 1));

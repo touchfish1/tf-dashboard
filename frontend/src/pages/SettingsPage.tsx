@@ -6,6 +6,7 @@ import {
   CheckCircle,
   WarningCircle,
 } from "@phosphor-icons/react";
+import { trackAction } from "../lib/tracking";
 import { linksApi, serversApi, settingsApi } from "../api";
 import type { NavLink, Server } from "../types";
 
@@ -89,6 +90,7 @@ export default function SettingsPage() {
   };
 
   const handleSaveDsKey = async () => {
+    trackAction("设置", "保存DeepSeek密钥");
     setDsKeySaving(true);
     try {
       await settingsApi.set("deepseek_api_key", dsKey);
@@ -118,6 +120,7 @@ export default function SettingsPage() {
   };
 
   const handleSaveOcConfig = async () => {
+    trackAction("设置", "保存OpenCode配置");
     setOcSaving(true);
     try {
       await Promise.all([
@@ -149,6 +152,7 @@ export default function SettingsPage() {
   };
 
   const handleSaveBg = async () => {
+    trackAction("设置", "保存背景设置");
     setBgSaving(true);
     try {
       await settingsApi.set("bg_image_url", bgUrl);
@@ -160,6 +164,7 @@ export default function SettingsPage() {
   };
 
   const handleUploadBg = async (file: File) => {
+    trackAction("设置", "上传背景图片", file.name);
     if (!file.type.startsWith("image/")) { toast("error", "只支持图片文件"); return; }
     if (file.size > 5 * 1024 * 1024) { toast("error", "文件不能超过 5MB"); return; }
     setBgUploading(true);
@@ -192,6 +197,7 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (!formName.trim() || !formUrl.trim()) return;
+    trackAction("服务器管理", editingServer ? "编辑服务器" : "添加服务器", formName.trim());
     setSaving(true);
     try {
       const labels = formLabels.trim()
@@ -234,6 +240,7 @@ export default function SettingsPage() {
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this server?")) return;
+    trackAction("服务器管理", "删除服务器", String(id));
     try {
       await serversApi.remove(id);
       await loadServers();
@@ -268,6 +275,7 @@ export default function SettingsPage() {
 
   const handleAddLink = async () => {
     if (!linkFormTitle.trim() || !linkFormUrl.trim()) return;
+    trackAction("网址导航", editingLink ? "编辑链接" : "添加链接", linkFormTitle.trim());
     setLinkSaving(true);
     try {
       if (editingLink) {
@@ -307,6 +315,7 @@ export default function SettingsPage() {
 
   const handleDeleteLink = async (id: number) => {
     if (!confirm("确定要删除这个链接吗？")) return;
+    trackAction("网址导航", "删除链接", String(id));
     try {
       await linksApi.remove(id);
       await loadLinks();

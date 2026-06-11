@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { trackAction } from "../lib/tracking";
 
 const PIE = ["#ec4899", "#06b6d4", "#a78bfa", "#f472b6", "#fbbf24", "#34d399"];
 const LINK_COLORS = ["#ec4899", "#06b6d4", "#a78bfa", "#f472b6", "#fbbf24", "#34d399", "#60a5fa", "#f97316"];
@@ -219,14 +220,14 @@ export default function DashboardPage() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <DashboardConfigPanel onConfigChange={setCfg} />
+           <DashboardConfigPanel onConfigChange={(cfg) => { trackAction("仪表盘", "配置面板"); setCfg(cfg); }} />
           <div className="flex gap-1 bg-muted rounded-lg p-0.5">
             {DAYS.map(d => (
               <Button
                 key={d.value}
                 variant={days === d.value ? "default" : "ghost"}
                 size="xs"
-                onClick={() => setDays(d.value)}
+                onClick={() => { trackAction("仪表盘", "切换时间范围", `${d.value}天`); setDays(d.value); }}
               >
                 {d.label}
               </Button>
@@ -256,6 +257,7 @@ export default function DashboardPage() {
               const letter = link.title.charAt(0).toUpperCase();
               return (
                 <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"
+                  onClick={() => trackAction("网址导航", "打开链接", link.title)}
                   className="block group">
                   <Card size="sm" className="text-center transition-all duration-200 hover:ring-2 hover:ring-primary/50">
                     <CardContent className="flex flex-col items-center gap-2.5 py-4">

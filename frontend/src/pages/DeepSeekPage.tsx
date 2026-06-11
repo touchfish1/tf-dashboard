@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { DeepSeekBalance } from "../types";
 import { deepseekApi, settingsApi } from "../api";
 import { Button } from "@/components/ui/button";
+import { trackAction } from "../lib/tracking";
 import { downloadCSV } from "@/lib/export";
 import {
   Area,
@@ -287,6 +288,7 @@ export default function DeepSeekPage() {
             variant="outline"
             size="xs"
             onClick={() => {
+              trackAction("DeepSeek", "导出CSV");
               const rows = history.map((h) => [
                 h.recordedAt,
                 h.balanceTotal,

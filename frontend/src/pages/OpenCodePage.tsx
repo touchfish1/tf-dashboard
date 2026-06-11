@@ -14,6 +14,7 @@ import {
 import { ArrowDown } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { downloadCSV } from "@/lib/export";
+import { trackAction } from "../lib/tracking";
 import { opencodeApi } from "../api";
 import type { OpenCodeUsage } from "../types";
 
@@ -459,6 +460,7 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   );
 
   const handleSort = (key: SortKey) => {
+    trackAction("OpenCode", "排序列", key);
     if (sortKey !== key) {
       setSortKey(key);
       setSortDir("asc");
@@ -472,6 +474,7 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   };
 
   const handleTimeRange = (d: TimeRange) => {
+    trackAction("OpenCode", "切换时间范围", `${d}天`);
     setDays(d);
     setPage(0);
   };
@@ -492,7 +495,7 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
         <h1 className="text-xl font-bold text-foreground">OpenCode Usage</h1>
         <div className="flex items-center gap-2">
           <RefreshButton
-            onClick={() => { setLoading(true); setRetry((c) => c + 1); }}
+            onClick={() => { trackAction("OpenCode", "刷新数据"); setLoading(true); setRetry((c) => c + 1); }}
             loading={loading}
             lastUpdated={lastUpdate}
           />
@@ -500,6 +503,7 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
             variant="outline"
             size="xs"
             onClick={() => {
+              trackAction("OpenCode", "导出CSV");
               const rows = data.map((r) => [
                 r.bucketStart, r.model, r.agent,
                 String(r.tokensInput), String(r.tokensOutput), String(r.tokensReasoning),
@@ -779,17 +783,17 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
               variant="outline"
               size="sm"
               disabled={page === 0}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              onClick={() => { trackAction("OpenCode", "翻页", "上一页"); setPage((p) => Math.max(0, p - 1)); }}
             >
-              Prev
+              上一页
             </Button>
             <Button
               variant="outline"
               size="sm"
               disabled={page >= pageCount - 1}
-              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+              onClick={() => { trackAction("OpenCode", "翻页", "下一页"); setPage((p) => Math.min(pageCount - 1, p + 1)); }}
             >
-              Next
+              下一页
             </Button>
           </div>
         </div>
