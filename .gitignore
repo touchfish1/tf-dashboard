@@ -4,3 +4,6 @@ dist/
 *.db
 uploads/
 .github/
+.omo/
+backend/mobile-dist/
+backend/mobile-web/
