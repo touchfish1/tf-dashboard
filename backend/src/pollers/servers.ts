@@ -6,6 +6,7 @@
 import { db } from "../db";
 import { servers, serverMetrics } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { createAlert } from "../lib/alerts";
 
 interface ServerMetricsResponse {
   hostname: string;
@@ -73,6 +74,7 @@ export async function pollAllServers(): Promise<void> {
         console.log(`[poller] ${server.name}: OK`);
       } catch (err) {
         console.warn(`[poller] ${server.name}: ${err}`);
+        await createAlert("server_offline", `服务器离线: ${server.name}`, `无法连接到 ${server.metricsUrl}`, "warning", String(server.id));
       }
     }
   } catch (err) {

@@ -8,18 +8,29 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/serve-static";
+import { ValidationError } from "./lib/validation";
 
 import serversRoute from "./routes/servers";
 import opencodeRoute from "./routes/opencode";
 import deepseekRoute from "./routes/deepseek";
 import settingsRoute from "./routes/settings";
 import linksRoute from "./routes/links";
+import alertsRoute from "./routes/alerts";
 import uploadRoute from "./routes/upload";
 import { pollAllServers } from "./pollers/servers";
 import { pollOpenCodeUsage } from "./pollers/opencode";
 import { pollDeepSeekBalance } from "./pollers/deepseek";
 
 const app = new Hono();
+
+// Unified error handler
+app.onError((err, c) => {
+  if (err instanceof ValidationError) {
+    return c.json({ error: err.message }, 400);
+  }
+  console.error("[error]", err);
+  return c.json({ error: "internal server error" }, 500);
+});
 
 // CORS: only allow localhost/dev origins in development
 const ALLOWED_ORIGINS = [
@@ -49,6 +60,7 @@ app.route("/api/opencode", opencodeRoute);
 app.route("/api/deepseek", deepseekRoute);
 app.route("/api/settings", settingsRoute);
 app.route("/api/links", linksRoute);
+app.route("/api/alerts", alertsRoute);
 app.route("/api", uploadRoute);
 
 // Serve built frontend in production

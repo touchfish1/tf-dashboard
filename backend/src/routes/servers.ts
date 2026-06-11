@@ -2,26 +2,28 @@ import { Hono } from "hono";
 import { db } from "../db";
 import { servers, serverMetrics } from "../db/schema";
 import { eq, desc, sql } from "drizzle-orm";
+import {
+  IdParam, DaysQuery, LimitQuery,
+  CreateServerBody, UpdateServerBody,
+  parseParam, parseJson,
+} from "../lib/validation";
 
 const router = new Hono();
 
-// List all servers
 router.get("/", async (c) => {
   const all = await db.select().from(servers);
   return c.json(all);
 });
 
-// Get single server
 router.get("/:id", async (c) => {
-  const id = parseInt(c.req.param("id"), 10);
+  const id = parseParam(c, "id", IdParam) as number;
   const [server] = await db.select().from(servers).where(eq(servers.id, id));
   if (!server) return c.json({ error: "not found" }, 404);
   return c.json(server);
 });
 
-// Create server
 router.post("/", async (c) => {
-  const body = await c.req.json<{ name: string; metricsUrl: string; labels?: string[] }>();
+  const body = await parseJson(c, CreateServerBody);
   const [created] = await db.insert(servers).values({
     name: body.name,
     metricsUrl: body.metricsUrl,
@@ -30,26 +32,23 @@ router.post("/", async (c) => {
   return c.json(created, 201);
 });
 
-// Update server
 router.patch("/:id", async (c) => {
-  const id = parseInt(c.req.param("id"), 10);
-  const body = await c.req.json<{ name?: string; metricsUrl?: string; labels?: string[]; isActive?: boolean }>();
+  const id = parseParam(c, "id", IdParam) as number;
+  const body = await parseJson(c, UpdateServerBody);
   const [updated] = await db.update(servers).set(body).where(eq(servers.id, id)).returning();
   if (!updated) return c.json({ error: "not found" }, 404);
   return c.json(updated);
 });
 
-// Delete server
 router.delete("/:id", async (c) => {
-  const id = parseInt(c.req.param("id"), 10);
+  const id = parseParam(c, "id", IdParam) as number;
   await db.delete(servers).where(eq(servers.id, id));
   return c.json({ ok: true });
 });
 
-// Get server metrics (latest N entries)
 router.get("/:id/metrics", async (c) => {
-  const id = parseInt(c.req.param("id"), 10);
-  const limit = parseInt(c.req.query("limit") || "100", 10);
+  const id = parseParam(c, "id", IdParam) as number;
+  const limit = Math.min(parseInt(c.req.query("limit") || "100", 10), 1000);
   const rows = await db.select()
     .from(serverMetrics)
     .where(eq(serverMetrics.serverId, id))
@@ -58,9 +57,8 @@ router.get("/:id/metrics", async (c) => {
   return c.json(rows);
 });
 
-// Get server metrics summary (aggregated)
 router.get("/:id/summary", async (c) => {
-  const id = parseInt(c.req.param("id"), 10);
+  const id = parseParam(c, "id", IdParam) as number;
   const days = parseInt(c.req.query("days") || "1", 10);
   const [row] = await db.select({
     avgCpu: sql<string>`ROUND(AVG(cpu_percent::numeric),1)`,

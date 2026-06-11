@@ -9,9 +9,10 @@
     "setup-db": "bun run scripts/setup-db.ts"
   },
   "dependencies": {
-    "hono": "^4.7.0",
     "drizzle-orm": "^0.40.0",
-    "postgres": "^3.4.0"
+    "hono": "^4.7.0",
+    "postgres": "^3.4.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "drizzle-kit": "^0.30.0"

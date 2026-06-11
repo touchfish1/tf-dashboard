@@ -55,6 +55,18 @@ export const settings = pgTable("settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// ─── Alerts / notifications ──────────────────────────────────────
+export const alerts = pgTable("alerts", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(),         // "balance_low" | "server_offline" | "opencode_error"
+  severity: text("severity").default("warning"), // "info" | "warning" | "critical"
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  refId: text("ref_id"),                // server id, etc.
+  acknowledged: boolean("acknowledged").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ─── Server metrics time series ──────────────────────────────────
 export const serverMetrics = pgTable("server_metrics", {
   id: serial("id").primaryKey(),
