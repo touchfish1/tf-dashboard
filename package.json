@@ -1,0 +1,14 @@
+{
+  "name": "tf-dashboard",
+  "private": true,
+  "workspaces": ["agent", "backend", "frontend"],
+  "scripts": {
+    "setup-db": "bun run backend/scripts/setup-db.ts",
+    "agent": "bun run agent/src/index.ts",
+    "agent:dev": "bun run --hot agent/src/index.ts",
+    "backend": "bun run backend/src/index.ts",
+    "backend:dev": "bun run --hot backend/src/index.ts",
+    "frontend:dev": "cd frontend && bun run dev",
+    "frontend:build": "cd frontend && bun run build"
+  }
+}
