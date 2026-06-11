@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   TrashSimple,
+  NotePencil,
   Plus,
   CheckCircle,
   WarningCircle,
@@ -17,6 +18,7 @@ export default function SettingsPage() {
   const [formName, setFormName] = useState("");
   const [formUrl, setFormUrl] = useState("");
   const [formLabels, setFormLabels] = useState("");
+  const [editingServer, setEditingServer] = useState<Server | null>(null);
 
   // DeepSeek API key state
   const [dsKey, setDsKey] = useState("");
@@ -42,6 +44,7 @@ export default function SettingsPage() {
   const [linkFormUrl, setLinkFormUrl] = useState("");
   const [linkFormCategory, setLinkFormCategory] = useState("");
   const [linkSaved, setLinkSaved] = useState(false);
+  const [editingLink, setEditingLink] = useState<NavLink | null>(null);
 
   useEffect(() => {
     loadServers();
@@ -125,21 +128,38 @@ export default function SettingsPage() {
       const labels = formLabels.trim()
         ? formLabels.split(",").map((s) => s.trim()).filter(Boolean)
         : undefined;
-      await serversApi.create({
-        name: formName.trim(),
-        metricsUrl: formUrl.trim(),
-        labels,
-      });
+      if (editingServer) {
+        await serversApi.update(editingServer.id, {
+          name: formName.trim(),
+          metricsUrl: formUrl.trim(),
+          labels,
+        });
+      } else {
+        await serversApi.create({
+          name: formName.trim(),
+          metricsUrl: formUrl.trim(),
+          labels,
+        });
+      }
       setShowForm(false);
+      setEditingServer(null);
       setFormName("");
       setFormUrl("");
       setFormLabels("");
       await loadServers();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to save server");
+      alert(e instanceof Error ? e.message : "保存服务器失败");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleEditServer = (srv: Server) => {
+    setEditingServer(srv);
+    setFormName(srv.name);
+    setFormUrl(srv.metricsUrl);
+    setFormLabels((srv.labels || []).join(", "));
+    setShowForm(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -154,6 +174,7 @@ export default function SettingsPage() {
 
   const handleCancelForm = () => {
     setShowForm(false);
+    setEditingServer(null);
     setFormName("");
     setFormUrl("");
     setFormLabels("");
@@ -178,12 +199,21 @@ export default function SettingsPage() {
     if (!linkFormTitle.trim() || !linkFormUrl.trim()) return;
     setLinkSaving(true);
     try {
-      await linksApi.create({
-        title: linkFormTitle.trim(),
-        url: linkFormUrl.trim(),
-        category: linkFormCategory.trim() || undefined,
-      });
+      if (editingLink) {
+        await linksApi.update(editingLink.id, {
+          title: linkFormTitle.trim(),
+          url: linkFormUrl.trim(),
+          category: linkFormCategory.trim() || undefined,
+        });
+      } else {
+        await linksApi.create({
+          title: linkFormTitle.trim(),
+          url: linkFormUrl.trim(),
+          category: linkFormCategory.trim() || undefined,
+        });
+      }
       setShowLinkForm(false);
+      setEditingLink(null);
       setLinkFormTitle("");
       setLinkFormUrl("");
       setLinkFormCategory("");
@@ -195,7 +225,14 @@ export default function SettingsPage() {
     } finally {
       setLinkSaving(false);
     }
+  };
 
+  const handleEditLink = (link: NavLink) => {
+    setEditingLink(link);
+    setLinkFormTitle(link.title);
+    setLinkFormUrl(link.url);
+    setLinkFormCategory(link.category || "");
+    setShowLinkForm(true);
   };
 
   const handleDeleteLink = async (id: number) => {
@@ -386,7 +423,7 @@ export default function SettingsPage() {
                 disabled={saving || !formName.trim() || !formUrl.trim()}
                 className="px-4 py-2 text-xs font-medium text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? "保存中..." : "保存"}
+                {saving ? "保存中..." : editingServer ? "更新" : "保存"}
               </button>
             </div>
           </div>
@@ -450,11 +487,18 @@ export default function SettingsPage() {
                         {server.isActive ? "Online" : "Offline"}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3 px-4 text-right flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => handleEditServer(server)}
+                        className="p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors rounded"
+                        title="编辑"
+                      >
+                        <NotePencil size={16} />
+                      </button>
                       <button
                         onClick={() => handleDelete(server.id)}
                         className="p-1.5 text-red-500 hover:text-red-400 transition-colors rounded"
-                        title="Delete server"
+                        title="删除"
                       >
                         <TrashSimple size={16} />
                       </button>
@@ -528,6 +572,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => {
                   setShowLinkForm(false);
+                  setEditingLink(null);
                   setLinkFormTitle("");
                   setLinkFormUrl("");
                   setLinkFormCategory("");
@@ -541,7 +586,7 @@ export default function SettingsPage() {
                 disabled={linkSaving || !linkFormTitle.trim() || !linkFormUrl.trim()}
                 className="px-4 py-2 text-xs font-medium text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {linkSaving ? "保存中..." : "保存"}
+                {linkSaving ? "保存中..." : editingLink ? "更新" : "保存"}
               </button>
             </div>
           </div>
@@ -606,11 +651,18 @@ export default function SettingsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3 px-4 text-right flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => handleEditLink(link)}
+                        className="p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors rounded"
+                        title="编辑"
+                      >
+                        <NotePencil size={16} />
+                      </button>
                       <button
                         onClick={() => handleDeleteLink(link.id)}
                         className="p-1.5 text-red-500 hover:text-red-400 transition-colors rounded"
-                        title="删除链接"
+                        title="删除"
                       >
                         <TrashSimple size={16} />
                       </button>

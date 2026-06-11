@@ -24,9 +24,30 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
+async function put<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(BASE + path, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PUT ${path}: ${res.status}`);
+  return res.json();
+}
+
 async function del(path: string): Promise<void> {
   const res = await fetch(BASE + path, { method: "DELETE" });
   if (!res.ok) throw new Error(`DELETE ${path}: ${res.status}`);
+}
+
+// ─── Helpers for PUT / PATCH ──────────────────────
+async function patchReq<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(BASE + path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PATCH ${path}: ${res.status}`);
+  return res.json();
 }
 
 // ─── Servers ─────────────────────────────────────
@@ -35,6 +56,8 @@ export const serversApi = {
   get: (id: number) => get<Server>(`/api/servers/${id}`),
   create: (body: { name: string; metricsUrl: string; labels?: string[] }) =>
     post<Server>("/servers", body),
+  update: (id: number, body: { name?: string; metricsUrl?: string; labels?: string[]; isActive?: boolean }) =>
+    patchReq<Server>(`/servers/${id}`, body),
   remove: (id: number) => del(`/servers/${id}`),
   metrics: (id: number, limit = 100) =>
     get<ServerMetrics[]>(`/api/servers/${id}/metrics`, { limit: String(limit) }),
@@ -60,6 +83,8 @@ export const linksApi = {
   list: () => get<NavLink[]>("/api/links"),
   create: (b: { title: string; url: string; icon?: string; category?: string }) =>
     post<NavLink>("/links", b),
+  update: (id: number, b: { title?: string; url?: string; category?: string }) =>
+    put<NavLink>(`/links/${id}`, b),
   remove: (id: number) => del(`/links/${id}`),
 };
 
