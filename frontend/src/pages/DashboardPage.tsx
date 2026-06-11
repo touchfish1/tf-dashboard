@@ -7,6 +7,7 @@ import DashboardConfigPanel from "@/components/DashboardConfig";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { trackAction } from "../lib/tracking";
@@ -593,6 +594,44 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Cost Attribution */}
+      {sectionVisible("charts") && byModel.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xs font-medium text-muted-foreground">模型成本归因</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">模型</TableHead>
+                  <TableHead className="text-right text-xs">总费用</TableHead>
+                  <TableHead className="text-right text-xs">会话数</TableHead>
+                  <TableHead className="text-right text-xs">输入 Token</TableHead>
+                  <TableHead className="text-right text-xs">输出 Token</TableHead>
+                  <TableHead className="text-right text-xs">单会话均费</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {byModel.map((m) => {
+                  const avgCost = m.sessionCount > 0 ? parseFloat(m.cost) / m.sessionCount : 0;
+                  return (
+                    <TableRow key={m.model}>
+                      <TableCell className="text-xs font-medium text-foreground">{m.model}</TableCell>
+                      <TableCell className="text-right font-mono text-xs text-foreground">${parseFloat(m.cost).toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs text-muted-foreground">{m.sessionCount}</TableCell>
+                      <TableCell className="text-right font-mono text-xs text-muted-foreground">{m.tokensInput.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono text-xs text-muted-foreground">{m.tokensOutput.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono text-xs text-foreground">${avgCost.toFixed(4)}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       )}

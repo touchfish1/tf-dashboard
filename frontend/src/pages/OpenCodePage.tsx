@@ -347,6 +347,7 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [sortDir, setSortDir] = useState<SortDir | null>(null);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
 
   const PAGE_SIZE = 10;
 
@@ -733,7 +734,7 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
         </ChartCard>
       </div>
 
-      {/* ── Row 3: Sessions Table ──────────────── */}
+      {/* ── Row 4: Sessions Table ──────────────── */}
       <Card>
         <CardHeader>
           <CardTitle>会话</CardTitle>
@@ -761,22 +762,33 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
             </TableHeader>
             <TableBody>
               {pageData.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="text-muted-foreground whitespace-nowrap">
-                    {formatDateTime(row.bucketStart)}
-                  </TableCell>
-                  <TableCell className="text-foreground">{row.model}</TableCell>
-                  <TableCell className="text-foreground">{row.agent}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
-                    {formatTokens(row.tokensInput)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
-                    {formatTokens(row.tokensOutput)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums text-foreground">
-                    {formatCost(row.cost)}
-                  </TableCell>
-                </TableRow>
+                <>
+                  <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setExpandedRow(expandedRow === row.id ? null : row.id)}>
+                    <TableCell className="text-muted-foreground whitespace-nowrap">{formatDateTime(row.bucketStart)}</TableCell>
+                    <TableCell className="text-foreground">{row.model}</TableCell>
+                    <TableCell className="text-foreground">{row.agent}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-muted-foreground">{formatTokens(row.tokensInput)}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-muted-foreground">{formatTokens(row.tokensOutput)}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-foreground">{formatCost(row.cost)}</TableCell>
+                  </TableRow>
+                  {expandedRow === row.id && (
+                    <TableRow key={`${row.id}-detail`}>
+                      <TableCell colSpan={6} className="bg-muted/30 p-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                          <div><span className="text-muted-foreground">推理 Token</span><div className="font-mono text-foreground mt-0.5">{formatTokens(row.tokensReasoning)}</div></div>
+                          <div><span className="text-muted-foreground">缓存读取</span><div className="font-mono text-foreground mt-0.5">{formatTokens(row.tokensCacheRead)}</div></div>
+                          <div><span className="text-muted-foreground">缓存写入</span><div className="font-mono text-foreground mt-0.5">{formatTokens(row.tokensCacheWrite)}</div></div>
+                          <div><span className="text-muted-foreground">会话数</span><div className="font-mono text-foreground mt-0.5">{row.sessionCount}</div></div>
+                          <div><span className="text-muted-foreground">输入 Token</span><div className="font-mono text-foreground mt-0.5">{row.tokensInput.toLocaleString()}</div></div>
+                          <div><span className="text-muted-foreground">输出 Token</span><div className="font-mono text-foreground mt-0.5">{row.tokensOutput.toLocaleString()}</div></div>
+                          <div><span className="text-muted-foreground">总 Token</span><div className="font-mono text-foreground mt-0.5">{formatTokens(row.tokensInput + row.tokensOutput + row.tokensReasoning)}</div></div>
+                          <div><span className="text-muted-foreground">时段</span><div className="font-mono text-foreground mt-0.5">{formatDateTime(row.bucketStart)} ~ {formatDateTime(row.bucketEnd)}</div></div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
               ))}
             </TableBody>
           </Table>

@@ -160,19 +160,18 @@ router.get("/anomaly", async (c) => {
     .where(sql`bucket_start >= CURRENT_DATE AND bucket_start < CURRENT_DATE + INTERVAL '1 day'`);
 
   // 7-day rolling average (excluding today)
-  const [avgRow] = await db.select({
-    avgCost: sql<string>`COALESCE(AVG(daily.cost),0)`,
-  })
-    .from(db.select({
-      cost: sql<string>`SUM(cost::numeric)`,
-    })
-      .from(opencodeUsage)
-      .where(sql`bucket_start >= CURRENT_DATE - INTERVAL '8 days' AND bucket_start < CURRENT_DATE`)
-      .groupBy(sql`DATE(bucket_start)`)
-      .as("daily"));
+  const avgResult = await db.execute(sql`
+    SELECT COALESCE(AVG(daily_cost),0) as avg_cost FROM (
+      SELECT SUM(cost::numeric) as daily_cost
+      FROM opencode_usage
+      WHERE bucket_start >= CURRENT_DATE - INTERVAL '8 days'
+        AND bucket_start < CURRENT_DATE
+      GROUP BY DATE(bucket_start)
+    ) daily
+  `);
 
   const todayCost = parseFloat(todayRow?.cost || "0");
-  const avgCost = parseFloat(avgRow?.avgCost || "0");
+  const avgCost = parseFloat(avgResult?.[0]?.avg_cost || "0");
   const ratio = avgCost > 0 ? todayCost / avgCost : 0;
 
   // Create alert if anomaly detected
