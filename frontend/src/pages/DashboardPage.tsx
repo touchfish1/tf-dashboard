@@ -560,6 +560,43 @@ export default function DashboardPage() {
         </Card>
       )}
 
+      {/* ════════════════════════════════════════════
+          Anomaly Detection
+          ════════════════════════════════════════════ */}
+      {anomaly && sectionVisible("charts") && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xs font-medium text-muted-foreground">费用监控</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div className="p-3 rounded-lg bg-muted/50">
+                <span className="text-[11px] text-muted-foreground">今日费用</span>
+                <div className="text-lg font-mono font-semibold text-foreground mt-1">${anomaly.todayCost.toFixed(2)}</div>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <span className="text-[11px] text-muted-foreground">7日均值</span>
+                <div className="text-lg font-mono font-semibold text-foreground mt-1">${anomaly.avgCost.toFixed(2)}</div>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <span className="text-[11px] text-muted-foreground">偏离倍率</span>
+                <div className={cn("text-lg font-mono font-semibold mt-1",
+                  anomaly.status === "anomaly" ? "text-destructive" : anomaly.status === "elevated" ? "text-amber-400" : "text-emerald-400")}>
+                  {anomaly.ratio.toFixed(2)}x
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <span className="text-[11px] text-muted-foreground">状态</span>
+                <div className={cn("text-lg font-semibold mt-1",
+                  anomaly.status === "anomaly" ? "text-destructive" : anomaly.status === "elevated" ? "text-amber-400" : "text-emerald-400")}>
+                  {anomaly.status === "anomaly" ? "⚠️ 异常" : anomaly.status === "elevated" ? "⚡ 偏高" : "✅ 正常"}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
     </div>
   );
 }
