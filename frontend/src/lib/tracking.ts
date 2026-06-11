@@ -53,7 +53,26 @@ type TrackEvent =
   | "error"
   | "performance"
   | "web_vital"
-  | "session";
+  | "session"
+  | "click"
+  | "form";
+
+interface TargetInfo {
+  tagName: string;
+  id: string;
+  className: string;
+  text: string;
+  type: string;
+  href: string;
+  selector: string;
+}
+
+interface ClickPosition {
+  clientX: number;
+  clientY: number;
+  pageX: number;
+  pageY: number;
+}
 
 interface TrackPayload {
   event: TrackEvent;
@@ -64,6 +83,8 @@ interface TrackPayload {
   path?: string;
   durationMs?: number;
   env: EnvInfo;
+  target?: TargetInfo;
+  position?: ClickPosition;
   metadata?: Record<string, unknown>;
 }
 
@@ -184,6 +205,108 @@ export function initViewportTracking(): void {
       ENV.viewport = `${window.innerWidth}x${window.innerHeight}`;
     }, 500);
   }, { passive: true });
+}
+
+// ─── 元素信息提取 ─────────────────────────────────────────
+
+function getSelector(el: Element): string {
+  if (el.id) return `#${el.id}`;
+  if (el.className && typeof el.className === "string") {
+    const cls = el.className.split(/\s+/).find((c) => c.length > 1 && !c.startsWith("_"));
+    if (cls) return `${el.tagName.toLowerCase()}.${cls}`;
+  }
+  return el.tagName.toLowerCase();
+}
+
+function extractTarget(el: EventTarget | null): TargetInfo | undefined {
+  if (!el || !(el instanceof Element)) return undefined;
+  return {
+    tagName: el.tagName.toLowerCase(),
+    id: (el as HTMLElement).id || "",
+    className: typeof el.className === "string" ? el.className.split(/\s+/).filter(Boolean).slice(0, 3).join(" ") : "",
+    text: (el.textContent || "").trim().slice(0, 50),
+    type: (el as HTMLInputElement).type || "",
+    href: (el as HTMLAnchorElement).href || "",
+    selector: getSelector(el),
+  };
+}
+
+function extractPosition(e: MouseEvent): ClickPosition {
+  return { clientX: e.clientX, clientY: e.clientY, pageX: e.pageX, pageY: e.pageY };
+}
+
+// ─── 全局点击追踪 ─────────────────────────────────────────
+
+let clickInitDone = false;
+
+/**
+ * 初始化全局点击追踪 —— 自动记录每一次点击的位置和目标元素。
+ * 使用事件委托（document 级别单监听器），避免性能开销。
+ */
+export function initClickTracking(): void {
+  if (clickInitDone) return;
+  clickInitDone = true;
+
+  document.addEventListener("click", (e: MouseEvent) => {
+    const target = extractTarget(e.target);
+    const position = extractPosition(e);
+
+    // 跳过 document/body 级别的空白点击
+    if (!target || target.tagName === "html" || target.tagName === "body") return;
+
+    send({
+      event: "click",
+      target,
+      position,
+      env: ENV,
+      metadata: {
+        // 附带父级上下文（用于识别按钮在哪个卡片/弹窗里）
+        parentText: (e.target as Element)?.closest?.("[class*='card'], [class*='Card'], [class*='dialog'], [class*='Dialog']")
+          ?.textContent?.trim().slice(0, 80) || "",
+      },
+    });
+  }, { passive: true, capture: true });
+}
+
+/**
+ * 手动记录点击（替代 trackAction，自动附加 target/position）。
+ * 在已有的 onClick 中调用，可以传入目标元素引用。
+ */
+export function trackClick(
+  category: string,
+  action: string,
+  label?: string,
+  targetEl?: Element | null,
+  metadata?: Record<string, unknown>,
+): void {
+  const target = targetEl ? extractTarget(targetEl) : undefined;
+  send({ event: "click", category, action, label, target, env: ENV, metadata });
+}
+
+// ─── 全局表单追踪 ─────────────────────────────────────────
+
+let formInitDone = false;
+
+export function initFormTracking(): void {
+  if (formInitDone) return;
+  formInitDone = true;
+
+  document.addEventListener("submit", (e: SubmitEvent) => {
+    const target = extractTarget(e.target);
+    const form = e.target as HTMLFormElement;
+    const fields: string[] = [];
+    for (const el of form.elements) {
+      const input = el as HTMLInputElement;
+      if (input.name) fields.push(input.name);
+    }
+    send({
+      event: "form",
+      action: "submit",
+      target,
+      env: ENV,
+      metadata: { formId: form.id || "", fields: fields.join(",") },
+    });
+  }, { passive: true, capture: true });
 }
 
 // ─── 发送（统一出口）─────────────────────────────────────
