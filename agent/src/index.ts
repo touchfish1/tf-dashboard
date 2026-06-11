@@ -1,21 +1,7 @@
-/**
- * tf-dashboard Metrics Agent
- *
- * Lightweight HTTP server exposing:
- *   GET /metrics          - system metrics (CPU, memory, disk, network)
- *   GET /api/opencode/sessions - OpenCode token usage data (via `opencode db`)
- *
- * Default port: 9100
- *
- * Environment variables:
- *   METRICS_PORT        - HTTP server port (default: 9100)
- *   METRICS_HOST        - bind address (default: 0.0.0.0)
- *   OPENCODE_API_KEY    - optional, required by external callers
- */
-
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { collectMetrics } from "./collector";
+import { logger } from "./lib/logger";
 
 const app = new Hono();
 
@@ -27,7 +13,10 @@ const API_KEY = process.env.OPENCODE_API_KEY || "";
 function checkApiKey(c: any): boolean {
   if (!API_KEY) return true;
   const provided = c.req.query("api_key");
-  if (provided !== API_KEY) return false;
+  if (provided !== API_KEY) {
+    logger.warn({ event: "auth_failed", clientIp: c.req.header("x-forwarded-for") || "unknown" }, "API key auth failed");
+    return false;
+  }
   return true;
 }
 
@@ -38,9 +27,10 @@ app.get("/health", (c) => c.json({ status: "ok", service: "tf-dashboard-agent" }
 app.get("/metrics", (c) => {
   try {
     const metrics = collectMetrics();
+    logger.info({ cpu: metrics.cpu.percent, memory: metrics.memory.percent, event: "metrics_collected" }, "Metrics collected");
     return c.json(metrics);
   } catch (err) {
-    console.error("Failed to collect metrics:", err);
+    logger.error({ err, event: "metrics_failed" }, "Failed to collect metrics");
     return c.json({ error: "metrics collection failed", message: String(err) }, 500);
   }
 });
@@ -52,9 +42,9 @@ app.get("/api/opencode/sessions", async (c) => {
   const days = parseInt(c.req.query("days") || "7", 10);
   const limit = parseInt(c.req.query("limit") || "500", 10);
 
-  // Check if `opencode` CLI is available (not present in Docker)
   const which = Bun.spawnSync(["which", "opencode"]);
   if (!which.success) {
+    logger.warn({ event: "cli_not_found" }, "OpenCode CLI 不可用");
     return c.json({ error: "opencode CLI not available in this environment" }, 501);
   }
 
@@ -67,14 +57,13 @@ app.get("/api/opencode/sessions", async (c) => {
 
     if (!proc.success) {
       const stderr = proc.stderr?.toString() || "unknown error";
-      console.error("[opencode] query failed:", stderr);
+      logger.error({ event: "query_failed", detail: stderr }, "OpenCode query failed");
       return c.json({ error: "query failed", detail: stderr }, 500);
     }
 
     const raw = proc.stdout?.toString() || "[]";
     const rows = JSON.parse(raw);
 
-    // Normalise model field (JSON string -> extract .id)
     const sessions = rows.map((row: any) => {
       let model = row.model;
       if (typeof model === "string" && model.startsWith("{")) {
@@ -93,9 +82,10 @@ app.get("/api/opencode/sessions", async (c) => {
       };
     });
 
+    logger.info({ sessionCount: sessions.length, days, event: "sessions_fetched" }, `Returned ${sessions.length} sessions`);
     return c.json({ sessions });
   } catch (err) {
-    console.error("[opencode] endpoint error:", err);
+    logger.error({ err, event: "sessions_error" }, "OpenCode endpoint error");
     return c.json({ error: String(err) }, 500);
   }
 });
@@ -104,10 +94,7 @@ app.get("/api/opencode/sessions", async (c) => {
 const port = parseInt(process.env.METRICS_PORT || "9100", 10);
 const host = process.env.METRICS_HOST || "0.0.0.0";
 
-console.log(`📊 tf-dashboard agent starting...`);
-console.log(`   System metrics: http://${host}:${port}/metrics`);
-console.log(`   OpenCode usage: http://${host}:${port}/api/opencode/sessions`);
-console.log(`   Health:         http://${host}:${port}/health`);
+  logger.info({ port, host, event: "server_start" }, "Agent服务启动");
 
 export default {
   port,
