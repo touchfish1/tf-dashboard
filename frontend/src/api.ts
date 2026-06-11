@@ -8,11 +8,34 @@ import type {
 import { trackApiCall } from "./lib/tracking";
 
 const BASE = "/api";
+const TIMEOUT_MS = 30000;
+const MAX_RETRIES = 2;
+const RETRYABLE_STATUS = [408, 429, 502, 503, 504];
+
+async function fetchWithTimeout(path: string, options?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(path, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function parseErrorBody(res: Response): Promise<string> {
+  try {
+    const body = await res.json();
+    return body.error || body.message || `HTTP ${res.status}`;
+  } catch {
+    return `HTTP ${res.status}`;
+  }
+}
 
 async function trackedFetch(method: string, path: string, options?: RequestInit): Promise<Response> {
   const start = performance.now();
   try {
-    const res = await fetch(path, options);
+    const res = await fetchWithTimeout(path, options);
     trackApiCall(path, Math.round(performance.now() - start), res.status, method);
     return res;
   } catch (err) {
@@ -21,48 +44,46 @@ async function trackedFetch(method: string, path: string, options?: RequestInit)
   }
 }
 
-async function get<T>(path: string, params?: Record<string, string>): Promise<T> {
-  const url = new URL(path, window.location.origin);
-  if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await trackedFetch("GET", url.toString());
-  if (!res.ok) throw new Error(`GET ${path}: ${res.status}`);
-  return res.json();
+async function apiFetch<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const url = path.startsWith("http") ? path : (path.startsWith("/api") ? path : BASE + path);
+  const options: RequestInit = {
+    method,
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  };
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await trackedFetch(method, url, options);
+
+    if (res.ok) {
+      if (method === "DELETE") return undefined as T;
+      return res.json();
+    }
+
+    const errMsg = await parseErrorBody(res);
+
+    // Retry on retryable status or network errors (handled by trackedFetch catch)
+    if (attempt < MAX_RETRIES && RETRYABLE_STATUS.includes(res.status)) {
+      const delay = Math.min(1000 * Math.pow(2, attempt), 4000);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
+    throw new Error(`${method} ${path}: ${errMsg}`);
+  }
+
+  throw new Error(`${method} ${path}: max retries exceeded`);
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await trackedFetch("POST", BASE + path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`POST ${path}: ${res.status}`);
-  return res.json();
-}
-
-async function put<T>(path: string, body: unknown): Promise<T> {
-  const res = await trackedFetch("PUT", BASE + path, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`PUT ${path}: ${res.status}`);
-  return res.json();
-}
-
-async function del(path: string): Promise<void> {
-  const res = await trackedFetch("DELETE", BASE + path, { method: "DELETE" });
-  if (!res.ok) throw new Error(`DELETE ${path}: ${res.status}`);
-}
-
-async function patchReq<T>(path: string, body: unknown): Promise<T> {
-  const res = await trackedFetch("PATCH", BASE + path, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`PATCH ${path}: ${res.status}`);
-  return res.json();
-}
+// ─── Low-level helpers (used by API objects below) ──────────
+const get = <T>(path: string, params?: Record<string, string>) => {
+  const url = params ? path + "?" + new URLSearchParams(params).toString() : path;
+  return apiFetch<T>("GET", url);
+};
+const post = <T>(path: string, body: unknown) => apiFetch<T>("POST", path, body);
+const put = <T>(path: string, body: unknown) => apiFetch<T>("PUT", path, body);
+const del = (path: string) => apiFetch<void>("DELETE", path);
+const patchReq = <T>(path: string, body: unknown) => apiFetch<T>("PATCH", path, body);
 
 // ─── Servers ─────────────────────────────────────
 export const serversApi = {
@@ -151,12 +172,6 @@ export const dashboardConfigApi = {
 export const settingsApi = {
   getAll: () => get<Record<string, string>>("/api/settings"),
   get: (key: string) => get<{ value: string | null }>(`/api/settings/${key}`),
-  set: (key: string, value: string) =>
-    fetch(`/api/settings/${key}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ value }),
-    }).then((r) => r.json()),
-  remove: (key: string) =>
-    fetch(`/api/settings/${key}`, { method: "DELETE" }).then((r) => r.json()),
+  set: (key: string, value: string) => put(`/settings/${key}`, { value }),
+  remove: (key: string) => del(`/settings/${key}`),
 };

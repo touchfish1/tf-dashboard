@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../db";
 import { navLinks } from "../db/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 import {
   IdParam, CreateLinkBody, UpdateLinkBody,
   parseParam, parseJson,
@@ -17,7 +17,7 @@ router.get("/", async (c) => {
 
 router.post("/", async (c) => {
   const body = await parseJson(c, CreateLinkBody);
-  const max = await db.select({ m: navLinks.sortOrder }).from(navLinks).orderBy(asc(navLinks.sortOrder)).limit(1);
+  const max = await db.select({ m: navLinks.sortOrder }).from(navLinks).orderBy(desc(navLinks.sortOrder)).limit(1);
   const nextOrder = (max?.[0]?.m ?? -1) + 1;
   const [created] = await db.insert(navLinks).values({
     title: body.title, url: body.url, icon: body.icon || "", category: body.category || "", sortOrder: nextOrder,

@@ -35,6 +35,16 @@ function PageFallback() {
   );
 }
 
+function NotFound() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="text-6xl font-bold text-muted-foreground/30">404</div>
+      <p className="text-sm text-muted-foreground">页面不存在</p>
+      <a href="/dashboard" className="text-sm text-primary hover:underline">返回总览</a>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -43,76 +53,14 @@ export default function App() {
           <Routes>
             <Route element={<Layout />}>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route
-                path="/dashboard"
-                element={
-                  <ErrorBoundary>
-                    <Suspense fallback={<PageFallback />}>
-                      <DashboardPage />
-                    </Suspense>
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/opencode"
-                element={
-                  <ErrorBoundary>
-                    <Suspense fallback={<PageFallback />}>
-                      <OpenCodePage />
-                    </Suspense>
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/deepseek"
-                element={
-                  <ErrorBoundary>
-                    <Suspense fallback={<PageFallback />}>
-                      <DeepSeekPage />
-                    </Suspense>
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/server"
-                element={
-                  <ErrorBoundary>
-                    <Suspense fallback={<PageFallback />}>
-                      <ServerPage />
-                    </Suspense>
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/server/:id"
-                element={
-                  <ErrorBoundary>
-                    <Suspense fallback={<PageFallback />}>
-                      <ServerPage />
-                    </Suspense>
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <ErrorBoundary>
-                    <Suspense fallback={<PageFallback />}>
-                      <SettingsPage />
-                    </Suspense>
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/audit"
-                element={
-                  <ErrorBoundary>
-                    <Suspense fallback={<PageFallback />}>
-                      <AuditLogPage />
-                    </Suspense>
-                  </ErrorBoundary>
-                }
-              />
+              <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><DashboardPage /></Suspense>} />
+              <Route path="/opencode" element={<Suspense fallback={<PageFallback />}><OpenCodePage /></Suspense>} />
+              <Route path="/deepseek" element={<Suspense fallback={<PageFallback />}><DeepSeekPage /></Suspense>} />
+              <Route path="/server" element={<Suspense fallback={<PageFallback />}><ServerPage /></Suspense>} />
+              <Route path="/server/:id" element={<Suspense fallback={<PageFallback />}><ServerPage /></Suspense>} />
+              <Route path="/settings" element={<Suspense fallback={<PageFallback />}><SettingsPage /></Suspense>} />
+              <Route path="/audit" element={<Suspense fallback={<PageFallback />}><AuditLogPage /></Suspense>} />
+              <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
         </ErrorBoundary>

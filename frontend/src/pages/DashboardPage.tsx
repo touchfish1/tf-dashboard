@@ -68,6 +68,7 @@ export default function DashboardPage() {
   const [links, setLinks] = useState<NavLink[]>([]);
   const [cfg, setCfg] = useState<DashboardConfig | null>(null);
   const [prediction, setPrediction] = useState<OpenCodePrediction | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
 
   // ── Clock tick ──
   useEffect(() => {
@@ -75,22 +76,36 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, []);
 
-  // ── Data fetch ──
+  // ── Data fetch (graceful partial failure) ──
   useEffect(() => {
     let cancel = false;
     setLoading(true);
+    setErrors([]);
     (async () => {
-      try {
-        const [s, u, bm, bal, sl, lk] = await Promise.all([
-          opencodeApi.summary(), opencodeApi.usage(days), opencodeApi.byModel(days),
-          deepseekApi.balance(), serversApi.list(), linksApi.list(),
-        ]);
-        if (cancel) return;
-        setSummary(s); setUsage(u); setByModel(bm); setBalance(bal); setServers(sl); setLinks(lk);
-        const m: Record<number, ServerSummary> = {};
-        await Promise.allSettled(sl.map(srv => serversApi.summary(srv.id, 1).then(r => { m[srv.id] = r; }).catch(() => {})));
-        if (!cancel) setSs(m);
-      } catch {} finally { if (!cancel) setLoading(false); }
+      const errs: string[] = [];
+      const [sr, ur, bmr, balr, slr, lkr] = await Promise.allSettled([
+        opencodeApi.summary(), opencodeApi.usage(days), opencodeApi.byModel(days),
+        deepseekApi.balance(), serversApi.list(), linksApi.list(),
+      ]);
+      if (sr.status === "fulfilled") setSummary(sr.value); else errs.push("用量汇总加载失败");
+      if (ur.status === "fulfilled") setUsage(ur.value); else errs.push("用量明细加载失败");
+      if (bmr.status === "fulfilled") setByModel(bmr.value); else errs.push("模型费用加载失败");
+      if (balr.status === "fulfilled") setBalance(balr.value); else errs.push("DeepSeek余额加载失败");
+      if (slr.status === "fulfilled") setServers(slr.value); else errs.push("服务器列表加载失败");
+      if (lkr.status === "fulfilled") setLinks(lkr.value); else errs.push("导航链接加载失败");
+
+      if (!cancel) {
+        if (errs.length > 0) setErrors(errs);
+        const serversData = slr.status === "fulfilled" ? slr.value : [];
+        if (serversData.length > 0) {
+          const m: Record<number, ServerSummary> = {};
+          await Promise.allSettled(serversData.map(srv =>
+            serversApi.summary(srv.id, 1).then(r => { m[srv.id] = r; })
+          ));
+          if (!cancel) setSs(m);
+        }
+      }
+      if (!cancel) setLoading(false);
     })();
     return () => { cancel = true; };
   }, [days]);
@@ -206,6 +221,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+
+      {/* Error banner */}
+      {errors.length > 0 && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <span className="font-medium">部分数据加载失败：</span>
+          {errors.join("；")}
+        </div>
+      )}
 
       {/* ════════════════════════════════════════════
           1. Top Bar: Greeting + Time + Days Selector

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, decimal, boolean, timestamp, bigint } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, decimal, boolean, timestamp, bigint, uniqueIndex } from "drizzle-orm/pg-core";
 
 // ─── Navigation links ───────────────────────────────────────────
 export const navLinks = pgTable("nav_links", {
@@ -36,7 +36,9 @@ export const opencodeUsage = pgTable("opencode_usage", {
   tokensCacheWrite: bigint("tokens_cache_write", { mode: "number" }).default(0),
   cost: decimal("cost", { precision: 12, scale: 6 }).default("0"),
   sessionCount: integer("session_count").default(0),
-});
+}, (table) => ({
+  uniqueBucket: uniqueIndex("idx_opencode_unique_bucket").on(table.bucketStart, table.model, table.agent),
+}));
 
 // ─── DeepSeek balance snapshots ──────────────────────────────────
 export const deepseekBalance = pgTable("deepseek_balance", {

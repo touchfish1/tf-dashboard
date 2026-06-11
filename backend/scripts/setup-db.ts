@@ -84,6 +84,11 @@ async function setup() {
     `;
 
     await client`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_opencode_unique_bucket
+        ON opencode_usage(bucket_start, model, agent);
+    `;
+
+    await client`
       CREATE TABLE IF NOT EXISTS deepseek_balance (
         id SERIAL PRIMARY KEY,
         recorded_at TIMESTAMPTZ DEFAULT NOW(),

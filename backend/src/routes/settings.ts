@@ -7,11 +7,19 @@ import { writeAuditLog } from "../lib/audit";
 
 const router = new Hono();
 
+const SENSITIVE_KEYS = ["deepseek_api_key", "opencode_api_key"];
+
+function maskValue(key: string, value: string): string {
+  return SENSITIVE_KEYS.includes(key) && value.length > 6
+    ? value.slice(0, 4) + "****" + value.slice(-2)
+    : value;
+}
+
 router.get("/", async (c) => {
   const rows = await db.select().from(settings);
   const map: Record<string, string> = {};
   for (const row of rows) {
-    map[row.key] = row.value;
+    map[row.key] = maskValue(row.key, row.value);
   }
   return c.json(map);
 });
