@@ -9,6 +9,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/serve-static";
 import { ValidationError } from "./lib/validation";
+import { logger, requestLogger } from "./lib/logger";
 
 import serversRoute from "./routes/servers";
 import opencodeRoute from "./routes/opencode";
@@ -17,20 +18,16 @@ import settingsRoute from "./routes/settings";
 import linksRoute from "./routes/links";
 import alertsRoute from "./routes/alerts";
 import uploadRoute from "./routes/upload";
+import logsRoute from "./routes/logs";
+import auditRoute from "./routes/audit";
 import { pollAllServers } from "./pollers/servers";
 import { pollOpenCodeUsage } from "./pollers/opencode";
 import { pollDeepSeekBalance } from "./pollers/deepseek";
 
 const app = new Hono();
 
-// Unified error handler
-app.onError((err, c) => {
-  if (err instanceof ValidationError) {
-    return c.json({ error: err.message }, 400);
-  }
-  console.error("[error]", err);
-  return c.json({ error: "internal server error" }, 500);
-});
+// Request logging middleware (runs before all routes)
+app.use("*", requestLogger);
 
 // CORS: only allow localhost/dev origins in development
 const ALLOWED_ORIGINS = [
@@ -44,11 +41,25 @@ app.use("/*", cors({ origin: ALLOWED_ORIGINS, credentials: true }));
 // API key auth middleware (all /api/* routes)
 const API_KEY = process.env.API_KEY || "";
 app.use("/api/*", async (c, next) => {
-  // Skip auth if no key configured (local dev)
   if (!API_KEY) return next();
   const provided = c.req.header("x-api-key") || c.req.query("api_key");
-  if (provided !== API_KEY) return c.json({ error: "unauthorized" }, 401);
+  if (provided !== API_KEY) {
+    const l = c.get("logger") as typeof logger | undefined;
+    (l || logger).warn({ event: "auth_failed" }, "API key auth failed");
+    return c.json({ error: "unauthorized" }, 401);
+  }
   return next();
+});
+
+// Unified error handler
+app.onError((err, c) => {
+  const l = c.get("logger") as typeof logger | undefined;
+  if (err instanceof ValidationError) {
+    (l || logger).warn({ err: err.message, event: "validation_error" });
+    return c.json({ error: err.message }, 400);
+  }
+  (l || logger).error({ err, event: "unhandled_error" }, "Unhandled error");
+  return c.json({ error: "internal server error" }, 500);
 });
 
 // Health check (no auth required)
@@ -63,6 +74,12 @@ app.route("/api/links", linksRoute);
 app.route("/api/alerts", alertsRoute);
 app.route("/api", uploadRoute);
 
+// Audit log query
+app.route("/api/audit", auditRoute);
+
+// Frontend log ingestion (POST /api/logs)
+app.route("/api", logsRoute);
+
 // Serve built frontend in production
 app.use("/*", serveStatic({ root: "../frontend/dist" }));
 
@@ -74,28 +91,22 @@ const INTERVALS = {
 };
 
 function startPollers(): void {
-  // Initial run after startup
   setTimeout(() => { pollAllServers(); }, 1000);
   setTimeout(() => { pollOpenCodeUsage(); }, 2000);
   setTimeout(() => { pollDeepSeekBalance(); }, 3000);
 
-  // Periodic runs
   setInterval(pollAllServers, INTERVALS.servers * 1000);
   setInterval(pollOpenCodeUsage, INTERVALS.opencode * 1000);
   setInterval(pollDeepSeekBalance, INTERVALS.deepseek * 1000);
 
-  console.log(`[cron] server metrics: every ${INTERVALS.servers}s`);
-  console.log(`[cron] opencode ETL:   every ${INTERVALS.opencode}s`);
-  console.log(`[cron] deepseek poll:  every ${INTERVALS.deepseek}s`);
+  logger.info({ event: "cron_start", intervals: INTERVALS }, "定时任务已启动");
 }
 
 // ─── Start ──────────────────────────────────────────────────────
 const port = parseInt(process.env.API_PORT || "3000", 10);
 const host = process.env.API_HOST || "0.0.0.0";
 
-console.log(`🖥️  tf-dashboard backend starting...`);
-console.log(`   API: http://${host}:${port}`);
-console.log(`   DB:  postgresql://zhangyuan@100.125.148.23:5432/tf_dashboard`);
+logger.info({ event: "server_start", port, host }, "后端服务启动");
 
 startPollers();
 

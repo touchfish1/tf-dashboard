@@ -157,6 +157,29 @@ async function setup() {
     `;
     console.log("   ✅ alerts");
 
+    await client`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id SERIAL PRIMARY KEY,
+        timestamp TIMESTAMPTZ DEFAULT NOW(),
+        type TEXT NOT NULL,
+        action TEXT NOT NULL,
+        actor TEXT DEFAULT 'system',
+        resource TEXT,
+        resource_id TEXT,
+        detail TEXT,
+        ip TEXT,
+        user_agent TEXT,
+        status INT,
+        duration_ms INT
+      );
+    `;
+    console.log("   ✅ audit_log");
+
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp
+        ON audit_log(timestamp DESC);
+    `;
+
     await client.end();
     console.log("\n🎉 Database setup complete!");
   } catch (err) {

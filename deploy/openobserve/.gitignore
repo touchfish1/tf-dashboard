@@ -1,0 +1,5 @@
+# OpenObserve local data (bind mount)
+/data/
+
+# Environment file with admin credentials
+.env

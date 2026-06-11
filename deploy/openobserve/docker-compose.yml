@@ -1,0 +1,44 @@
+services:
+  # ─── OpenObserve ────────────────────────────────────────────────
+  # Self-hosted observability platform (logs, metrics, traces).
+  # Web UI + HTTP API on port 5080, OTLP gRPC on 5081.
+  # Docs: https://openobserve.ai/docs/
+  # ─────────────────────────────────────────────────────────────────
+  openobserve:
+    image: public.ecr.aws/zinclabs/openobserve:latest
+    container_name: openobserve
+    restart: unless-stopped
+    ports:
+      - "5080:5080"          # Web UI + HTTP API + OTLP HTTP
+      - "5081:5081"          # OTLP gRPC (optional, for traces)
+    environment:
+      # ── Admin credentials (第一启动必填，之后可省略) ──
+      ZO_ROOT_USER_EMAIL: ${ZO_ROOT_USER_EMAIL:-admin@tf-dashboard.local}
+      ZO_ROOT_USER_PASSWORD: ${ZO_ROOT_USER_PASSWORD}
+      ZO_LOCAL_MODE: "true"
+
+      # ── Storage ──
+      ZO_DATA_DIR: /data
+
+      # ── Memory limit ──
+      ZO_MEMORY_CACHE_MAX_SIZE: ${ZO_MEMORY_CACHE_MAX_SIZE:-256}
+
+      # ── Telemetry (关闭 OpenObserve 自身的遥测上报) ──
+      ZO_TELEMETRY: "false"
+
+      # ── Retention (days, 默认 7) ──
+      ZO_DATA_RETENTION_DAYS: ${ZO_DATA_RETENTION_DAYS:-7}
+
+    volumes:
+      - ./data:/data
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+    labels:
+      - "app=openobserve"
+      - "component=observability"

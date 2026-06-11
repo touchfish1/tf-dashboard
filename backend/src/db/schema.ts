@@ -67,6 +67,22 @@ export const alerts = pgTable("alerts", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ─── Audit log (operations & access) ────────────────────────────
+export const auditLog = pgTable("audit_log", {
+  id: serial("id").primaryKey(),
+  timestamp: timestamp("timestamp").defaultNow(),
+  type: text("type").notNull(),         // "operation" | "access"
+  action: text("action").notNull(),     // "server.create" | "settings.update" etc
+  actor: text("actor").default("system"),
+  resource: text("resource"),            // "servers" | "settings" | "links"
+  resourceId: text("resource_id"),
+  detail: text("detail"),               // JSON string
+  ip: text("ip"),
+  userAgent: text("user_agent"),
+  status: integer("status"),
+  durationMs: integer("duration_ms"),
+});
+
 // ─── Server metrics time series ──────────────────────────────────
 export const serverMetrics = pgTable("server_metrics", {
   id: serial("id").primaryKey(),
