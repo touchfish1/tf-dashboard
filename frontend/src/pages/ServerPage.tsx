@@ -23,6 +23,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 
 type TimeRange = "1h" | "24h" | "7d";
 
@@ -158,6 +159,7 @@ export default function ServerPage() {
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>("1h");
+  const [search, setSearch] = useState("");
 
   const selectedId = id ? Number(id) : null;
   const selectedIndex = servers.findIndex((s) => s.id === selectedId);
@@ -266,7 +268,6 @@ export default function ServerPage() {
 
   // ── Server overview (no ID selected) ─────────────────────────
   if (!selectedId && servers.length > 0) {
-    // Group servers by labels
     const groups = new Map<string, Server[]>();
     groups.set("未分类", []);
     for (const srv of servers) {
@@ -294,35 +295,80 @@ export default function ServerPage() {
       return { score, color };
     };
 
+    const onlineCount = servers.filter((s) => s.isActive).length;
+    const avgHealth = servers.reduce((sum, s) => sum + calcHealth(s).score, 0) / servers.length;
+
+    const filtered = search.trim()
+      ? servers.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
+      : null;
+
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-foreground">服务器总览</h1>
-          <div className="text-xs text-muted-foreground">
-            共 {servers.length} 台服务器
-          </div>
-        </div>
+        {/* ── Summary header ── */}
+        <Card>
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-6">
+              <div>
+                <div className="text-2xl font-bold text-foreground">{servers.length}</div>
+                <div className="text-xs text-muted-foreground">总服务器</div>
+              </div>
+              <div className="w-px h-8 bg-border" />
+              <div>
+                <div className="text-2xl font-bold text-emerald-400">{onlineCount}</div>
+                <div className="text-xs text-muted-foreground">在线</div>
+              </div>
+              <div className="w-px h-8 bg-border" />
+              <div>
+                <div className="text-2xl font-bold text-muted-foreground">{servers.length - onlineCount}</div>
+                <div className="text-xs text-muted-foreground">离线</div>
+              </div>
+              <div className="w-px h-8 bg-border" />
+              <div>
+                <div className={cn("text-2xl font-bold font-mono", avgHealth >= 80 ? "text-emerald-400" : avgHealth >= 60 ? "text-amber-400" : "text-red-400")}>{avgHealth.toFixed(0)}</div>
+                <div className="text-xs text-muted-foreground">平均健康</div>
+              </div>
+            </div>
+            <Input
+              placeholder="搜索服务器..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-48 h-8 text-xs"
+            />
+          </CardContent>
+        </Card>
 
-        {Array.from(groups.entries()).map(([groupName, groupServers]) => (
-          groupServers.length === 0 ? null : (
+        {/* ── Group cards ── */}
+        {Array.from(groups.entries()).map(([groupName, groupServers]) => {
+          const visible = filtered ?? groupServers;
+          if (visible.length === 0) return null;
+          const grpCpu = visible.reduce((s, sv) => s + (allSummaries[sv.id] ? parseFloat(allSummaries[sv.id].latestCpu) : 0), 0) / visible.length;
+          const grpMem = visible.reduce((s, sv) => s + (allSummaries[sv.id] ? parseFloat(allSummaries[sv.id].latestMem) : 0), 0) / visible.length;
+          return (
             <Card key={groupName}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {groupName === "未分类" ? (
-                    <span className="text-sm font-medium">未分类</span>
-                  ) : (
-                    <Badge variant="secondary" className="text-xs">{groupName}</Badge>
-                  )}
-                  <span className="text-xs text-muted-foreground font-normal">{groupServers.length} 台</span>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {groupName === "未分类" ? (
+                      <span className="text-sm font-medium">未分类</span>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs">{groupName}</Badge>
+                    )}
+                    <span className="text-xs text-muted-foreground font-normal">{visible.length} 台</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span>CPU 均 {grpCpu.toFixed(0)}%</span>
+                    <span>MEM 均 {grpMem.toFixed(0)}%</span>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                  {groupServers.map((srv) => {
+                  {visible.map((srv) => {
                     const sm = allSummaries[srv.id];
                     const health = calcHealth(srv);
                     const cpu = sm ? parseFloat(sm.latestCpu) : 0;
                     const mem = sm ? parseFloat(sm.latestMem) : 0;
+                    const up = sm?.uptime ?? 0;
                     return (
                       <Link
                         key={srv.id}
@@ -352,10 +398,13 @@ export default function ServerPage() {
                             <span className="text-[11px] font-mono w-8 text-right text-muted-foreground">{isNaN(mem) ? "-" : mem.toFixed(0) + "%"}</span>
                           </div>
                         </div>
-                        <div className="mt-2 flex items-center gap-2 flex-wrap">
-                          {srv.labels?.map((l) => (
-                            <span key={l} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{l}</span>
-                          ))}
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {srv.labels?.map((l) => (
+                              <span key={l} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{l}</span>
+                            ))}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground font-mono">{formatUptime(up)}</span>
                         </div>
                       </Link>
                     );
@@ -363,8 +412,8 @@ export default function ServerPage() {
                 </div>
               </CardContent>
             </Card>
-          )
-        ))}
+          );
+        })}
       </div>
     );
   }
