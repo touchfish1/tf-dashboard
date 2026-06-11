@@ -9,11 +9,16 @@
     "backend": "bun run backend/src/index.ts",
     "backend:dev": "bun run --hot backend/src/index.ts",
     "frontend:dev": "cd frontend && bun run dev",
-    "frontend:build": "cd frontend && bun run build"
+    "frontend:build": "cd frontend && bun run build",
+    "test": "bun test",
+    "test:backend": "bun test --cwd backend",
+    "test:frontend": "bun test --cwd frontend",
+    "typecheck": "cd frontend && bun run tsc --noEmit && cd ../backend && bun run tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --apply .",
+    "ci": "bun run typecheck && bun run test && bun run frontend:build"
   },
-  "dependencies": {
-    "expo-linear-gradient": "^56.0.4",
-    "react-native-gifted-charts": "^1.4.77",
-    "react-native-svg": "^15.15.5"
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.16"
   }
 }
