@@ -71,6 +71,7 @@ export default function DashboardPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [monthlyBudget, setMonthlyBudget] = useState<number>(0);
   const [monthlyCost, setMonthlyCost] = useState(0);
+  const [anomaly, setAnomaly] = useState<{ todayCost: number; avgCost: number; ratio: number; status: string } | null>(null);
 
   // ── Clock tick ──
   useEffect(() => {
@@ -115,6 +116,7 @@ export default function DashboardPage() {
   // ── Prediction fetch ──
   useEffect(() => {
     opencodeApi.predict(30, 14).then(setPrediction).catch(() => {});
+    opencodeApi.anomaly().then(setAnomaly).catch(() => {});
   }, []);
 
   // ── Load dashboard config + budget ──

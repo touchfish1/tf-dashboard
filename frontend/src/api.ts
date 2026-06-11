@@ -111,6 +111,7 @@ export const opencodeApi = {
   byModel: (days = 7) => get<OpenCodeByModel[]>("/api/opencode/by-model", { days: String(days) }),
   predict: (days = 30, predict = 7) =>
     get<OpenCodePrediction>("/api/opencode/predict", { days: String(days), predict: String(predict) }),
+  anomaly: () => get<{ todayCost: number; avgCost: number; ratio: number; status: string }>("/api/opencode/anomaly"),
 };
 
 // ─── DeepSeek ────────────────────────────────────
