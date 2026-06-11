@@ -309,6 +309,109 @@ export function initFormTracking(): void {
   }, { passive: true, capture: true });
 }
 
+// ─── 滚动深度追踪 ────────────────────────────────────────
+
+let scrollInitDone = false;
+const SCROLL_THRESHOLDS = [25, 50, 75, 90, 100];
+let scrollReported = new Set<number>();
+
+export function initScrollTracking(): void {
+  if (scrollInitDone) return;
+  scrollInitDone = true;
+
+  addEventListener("scroll", () => {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    if (docHeight <= 0) return;
+    const pct = Math.round((scrollTop / docHeight) * 100);
+
+    for (const threshold of SCROLL_THRESHOLDS) {
+      if (pct >= threshold && !scrollReported.has(threshold)) {
+        scrollReported.add(threshold);
+        send({ event: "performance", action: "scroll_depth", value: threshold, env: ENV });
+      }
+    }
+  }, { passive: true });
+}
+
+// ─── 愤怒点击 / 无效点击检测 ──────────────────────────────
+
+interface ClickRecord {
+  target: string;
+  time: number;
+  x: number;
+  y: number;
+}
+
+let recentClicks: ClickRecord[] = [];
+const RAGE_WINDOW_MS = 1200;
+const RAGE_DISTANCE_PX = 30;
+
+function detectRageClick(target: string, x: number, y: number, now: number): boolean {
+  recentClicks = recentClicks.filter((c) => now - c.time < RAGE_WINDOW_MS);
+  const same = recentClicks.filter(
+    (c) => c.target === target && Math.abs(c.x - x) < RAGE_DISTANCE_PX && Math.abs(c.y - y) < RAGE_DISTANCE_PX,
+  );
+  recentClicks.push({ target, time: now, x, y });
+
+  if (same.length >= 3) {
+    send({ event: "click", action: "rage_click", target: { tagName: "", id: "", className: "", text: "", type: "", href: "", selector: target }, position: { clientX: x, clientY: y, pageX: x, pageY: y }, env: ENV, metadata: { rageCount: same.length + 1 } });
+    return true;
+  }
+  return false;
+}
+
+// ─── 页面可见性追踪 ──────────────────────────────────────
+
+let visibilityInitDone = false;
+let lastHiddenTime = 0;
+
+export function initVisibilityTracking(): void {
+  if (visibilityInitDone) return;
+  visibilityInitDone = true;
+
+  addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      lastHiddenTime = Date.now();
+      send({ event: "session", action: "tab_hidden", env: ENV });
+    } else {
+      const hiddenDuration = Math.round((Date.now() - lastHiddenTime) / 1000);
+      if (hiddenDuration > 5) {
+        send({ event: "session", action: "tab_visible", value: hiddenDuration, env: ENV });
+      }
+    }
+  }, { passive: true });
+
+  // 窗口 blur/focus 补充
+  addEventListener("blur", () => send({ event: "session", action: "window_blur", env: ENV }), { passive: true });
+  addEventListener("focus", () => send({ event: "session", action: "window_focus", env: ENV }), { passive: true });
+}
+
+// ─── 外链点击追踪 ────────────────────────────────────────
+
+let outboundInitDone = false;
+
+export function initOutboundTracking(): void {
+  if (outboundInitDone) return;
+  outboundInitDone = true;
+
+  document.addEventListener("click", (e: MouseEvent) => {
+    const anchor = (e.target as Element)?.closest?.("a");
+    if (!anchor) return;
+    const href = (anchor as HTMLAnchorElement).href;
+    if (!href || href.startsWith(window.location.origin) || href.startsWith("/") || href.startsWith("#")) return;
+
+    send({
+      event: "click",
+      action: "outbound_link",
+      label: href.slice(0, 200),
+      target: extractTarget(anchor),
+      position: { clientX: e.clientX, clientY: e.clientY, pageX: e.pageX, pageY: e.pageY },
+      env: ENV,
+    });
+  }, { passive: true });
+}
+
 // ─── 发送（统一出口）─────────────────────────────────────
 
 function send(payload: TrackPayload): void {

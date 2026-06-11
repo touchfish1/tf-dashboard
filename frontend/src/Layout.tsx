@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Server as ServerType, Alert } from "./types";
 import { serversApi, alertsApi } from "./api";
-import { trackPageView, trackPerformance, trackAction, startSessionTracking, stopSessionTracking, initViewportTracking, initClickTracking, initFormTracking } from "./lib/tracking";
+import { trackPageView, trackPerformance, trackAction, startSessionTracking, stopSessionTracking, initViewportTracking, initClickTracking, initFormTracking, initScrollTracking, initVisibilityTracking, initOutboundTracking } from "./lib/tracking";
 
 const NAV = [
   { to: "/dashboard", label: "总览", icon: ChartPieSlice },
@@ -51,6 +51,9 @@ export default function Layout() {
     initViewportTracking();
     initClickTracking();
     initFormTracking();
+    initScrollTracking();
+    initVisibilityTracking();
+    initOutboundTracking();
     return () => stopSessionTracking();
   }, []);
 
