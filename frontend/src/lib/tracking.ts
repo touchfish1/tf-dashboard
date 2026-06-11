@@ -412,18 +412,71 @@ export function initOutboundTracking(): void {
   }, { passive: true });
 }
 
-// ─── 发送（统一出口）─────────────────────────────────────
+// ─── 批量发送（缓冲 + 定时上报）─────────────────────────
+
+const BUFFER: string[] = [];
+let flushTimer: ReturnType<typeof setInterval> | null = null;
+let flushIntervalMs = 30000; // 默认 30s
+
+/**
+ * 从后端设置读取上报间隔，覆盖默认值。
+ */
+export async function loadFlushInterval(): Promise<void> {
+  try {
+    const res = await fetch("/api/settings/tracking_interval");
+    if (res.ok) {
+      const { value } = await res.json();
+      if (value) {
+        const ms = parseInt(value, 10) * 1000;
+        if (ms >= 5000 && ms <= 300000) flushIntervalMs = ms;
+      }
+    }
+  } catch { /* use default */ }
+}
+
+/**
+ * 启动批量上报定时器。
+ */
+export function startBatchSender(): void {
+  if (flushTimer) return;
+  loadFlushInterval().then(() => {
+    flushTimer = setInterval(flush, flushIntervalMs);
+  });
+}
+
+/**
+ * 停止定时器（页面卸载时调用）。
+ */
+export function stopBatchSender(): void {
+  if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
+  // 最后一次机会，把剩余数据发出去
+  flush();
+}
+
+/**
+ * 将缓冲区的所有事件合并成一次请求发送。
+ */
+function flush(): void {
+  if (BUFFER.length === 0) return;
+  const batch = BUFFER.splice(0, BUFFER.length);
+  try {
+    navigator.sendBeacon("/api/logs", JSON.stringify(batch));
+  } catch { /* ignore */ }
+}
 
 function send(payload: TrackPayload): void {
   try {
-    const body = JSON.stringify({
+    BUFFER.push(JSON.stringify({
       level: "info",
       message: `[埋点] ${payload.event}${payload.action ? ":" + payload.action : ""}`,
       data: payload,
       source: "frontend",
-    });
-    navigator.sendBeacon("/api/logs", body);
+    }));
   } catch {
     // Never throw from tracking
   }
 }
+
+// 页面卸载时确保缓冲区清空
+addEventListener("beforeunload", flush, { once: true });
+addEventListener("pagehide", flush, { once: true });

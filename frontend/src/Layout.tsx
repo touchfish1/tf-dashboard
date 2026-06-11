@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import type { Server as ServerType, Alert } from "./types";
 import { serversApi, alertsApi } from "./api";
 import ConnectionStatus from "@/components/ConnectionStatus";
-import { trackPageView, trackPerformance, trackAction, startSessionTracking, stopSessionTracking, initViewportTracking, initClickTracking, initFormTracking, initScrollTracking, initVisibilityTracking, initOutboundTracking } from "./lib/tracking";
+import { trackPageView, trackPerformance, trackAction, startSessionTracking, stopSessionTracking, initViewportTracking, initClickTracking, initFormTracking, initScrollTracking, initVisibilityTracking, initOutboundTracking, startBatchSender, stopBatchSender } from "./lib/tracking";
 
 const NAV = [
   { to: "/dashboard", label: "总览", icon: ChartPieSlice },
@@ -48,6 +48,7 @@ export default function Layout() {
   }, [loc.pathname]);
 
   useEffect(() => {
+    startBatchSender();
     startSessionTracking();
     initViewportTracking();
     initClickTracking();
@@ -55,7 +56,7 @@ export default function Layout() {
     initScrollTracking();
     initVisibilityTracking();
     initOutboundTracking();
-    return () => stopSessionTracking();
+    return () => { stopSessionTracking(); stopBatchSender(); };
   }, []);
 
   // Track page load performance
