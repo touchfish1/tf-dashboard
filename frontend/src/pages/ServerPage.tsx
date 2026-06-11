@@ -165,6 +165,9 @@ export default function ServerPage() {
   const nextServer =
     selectedIndex < servers.length - 1 ? servers[selectedIndex + 1] : null;
 
+  // Overview: summaries for all servers (for health score)
+  const [allSummaries, setAllSummaries] = useState<Record<number, ServerSummary>>({});
+
   // ── Load server list ─────────────────────────────────────────
   useEffect(() => {
     serversApi
@@ -172,12 +175,11 @@ export default function ServerPage() {
       .then((list) => {
         setServers(list);
         setLoadingServers(false);
-        if (!selectedId && list.length > 0) {
-          navigate(`/server/${list[0].id}`, { replace: true });
-        }
-        if (list.length === 0) {
-          setLoadingServers(false);
-        }
+        // Fetch summaries for all servers (for overview / health score)
+        const m: Record<number, ServerSummary> = {};
+        Promise.allSettled(list.map((s) =>
+          serversApi.summary(s.id, 1).then((r) => { m[s.id] = r; }).catch(() => {})
+        )).then(() => setAllSummaries(m));
       })
       .catch((err) => {
         setError(err.message);
@@ -258,6 +260,111 @@ export default function ServerPage() {
     return (
       <div className="flex-1 flex items-center justify-center">
         <p className="text-destructive text-sm">{error}</p>
+      </div>
+    );
+  }
+
+  // ── Server overview (no ID selected) ─────────────────────────
+  if (!selectedId && servers.length > 0) {
+    // Group servers by labels
+    const groups = new Map<string, Server[]>();
+    groups.set("未分类", []);
+    for (const srv of servers) {
+      if (srv.labels && srv.labels.length > 0) {
+        for (const label of srv.labels) {
+          if (!groups.has(label)) groups.set(label, []);
+          groups.get(label)!.push(srv);
+        }
+      } else {
+        groups.get("未分类")!.push(srv);
+      }
+    }
+
+    const calcHealth = (srv: Server): { score: number; color: string } => {
+      const sm = allSummaries[srv.id];
+      const cpu = sm ? parseFloat(sm.latestCpu) : 0;
+      const mem = sm ? parseFloat(sm.latestMem) : 0;
+      const disk = sm ? parseFloat(sm.latestDisk) : 0;
+      const score = Math.round(
+        Math.max(0, 100 - cpu) * 0.4 +
+        Math.max(0, 100 - mem) * 0.3 +
+        Math.max(0, 100 - Math.min(disk / 500 * 100, 100)) * 0.3
+      );
+      const color = score >= 80 ? "text-emerald-400" : score >= 60 ? "text-amber-400" : "text-red-400";
+      return { score, color };
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-foreground">服务器总览</h1>
+          <div className="text-xs text-muted-foreground">
+            共 {servers.length} 台服务器
+          </div>
+        </div>
+
+        {Array.from(groups.entries()).map(([groupName, groupServers]) => (
+          groupServers.length === 0 ? null : (
+            <Card key={groupName}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  {groupName === "未分类" ? (
+                    <span className="text-sm font-medium">未分类</span>
+                  ) : (
+                    <Badge variant="secondary" className="text-xs">{groupName}</Badge>
+                  )}
+                  <span className="text-xs text-muted-foreground font-normal">{groupServers.length} 台</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {groupServers.map((srv) => {
+                    const sm = allSummaries[srv.id];
+                    const health = calcHealth(srv);
+                    const cpu = sm ? parseFloat(sm.latestCpu) : 0;
+                    const mem = sm ? parseFloat(sm.latestMem) : 0;
+                    return (
+                      <Link
+                        key={srv.id}
+                        to={`/server/${srv.id}`}
+                        className="block rounded-lg border border-border bg-card p-4 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={cn("w-2 h-2 rounded-full shrink-0", srv.isActive ? "bg-emerald-500" : "bg-muted-foreground")} />
+                            <span className="text-sm font-medium text-foreground truncate">{srv.name}</span>
+                          </div>
+                          <span className={cn("text-lg font-bold font-mono", health.color)}>{health.score}</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] w-6 text-muted-foreground">CPU</span>
+                            <div className="flex-1 h-1 rounded-full bg-border">
+                              <div className="h-1 rounded-full transition-all" style={{ width: `${Math.min(cpu, 100)}%`, background: cpu > 80 ? "#ef4444" : cpu > 60 ? "#f59e0b" : "#22c55e" }} />
+                            </div>
+                            <span className="text-[11px] font-mono w-8 text-right text-muted-foreground">{isNaN(cpu) ? "-" : cpu.toFixed(0) + "%"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] w-6 text-muted-foreground">MEM</span>
+                            <div className="flex-1 h-1 rounded-full bg-border">
+                              <div className="h-1 rounded-full transition-all" style={{ width: `${Math.min(mem, 100)}%`, background: mem > 80 ? "#ef4444" : mem > 60 ? "#f59e0b" : "#3b82f6" }} />
+                            </div>
+                            <span className="text-[11px] font-mono w-8 text-right text-muted-foreground">{isNaN(mem) ? "-" : mem.toFixed(0) + "%"}</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
+                          {srv.labels?.map((l) => (
+                            <span key={l} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{l}</span>
+                          ))}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )
+        ))}
       </div>
     );
   }
