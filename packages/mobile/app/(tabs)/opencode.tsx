@@ -9,6 +9,7 @@ import { TokenTrendChart } from '../../src/components/TokenTrendChart'
 import { useRefresh } from '../../src/hooks/useRefresh'
 import { useOpenCodeSummary, useOpenCodeUsage, useOpenCodeByModel } from '../../src/hooks/useQueries'
 import { formatTokens, formatCost } from '@tf-dashboard/shared/utils/format'
+import { trackAction } from '../../src/lib/tracking'
 
 const TIME_RANGES = [
   { label: '7天', days: 7 },
@@ -41,7 +42,7 @@ export default function OpenCodeScreen() {
           {TIME_RANGES.map((r) => (
             <TouchableOpacity
               key={r.days}
-              onPress={() => setDays(r.days)}
+              onPress={() => { setDays(r.days); trackAction('opencode', 'switch_range', r.label) }}
               activeOpacity={0.7}
               className={`px-4 py-2 rounded-full border ${
                 days === r.days

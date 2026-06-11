@@ -6,6 +6,7 @@ import { Card } from '../../src/components/Card'
 import { SectionHeader } from '../../src/components/SectionHeader'
 import { useRefresh } from '../../src/hooks/useRefresh'
 import { useSettings } from '../../src/store/settings'
+import { trackAction } from '../../src/lib/tracking'
 
 interface EditField {
   key: 'apiUrl' | 'apiKey' | 'deepseekKey'
@@ -30,9 +31,9 @@ export default function SettingsScreen() {
   const saveEdit = async () => {
     if (!editModal) return
     const trimmed = editValue.trim()
-    if (editModal.key === 'apiUrl') await setApiUrl(trimmed || 'http://localhost:3000')
-    else if (editModal.key === 'apiKey') await setApiKey(trimmed)
-    else if (editModal.key === 'deepseekKey') await setDeepseekKey(trimmed)
+    if (editModal.key === 'apiUrl') { await setApiUrl(trimmed || 'http://localhost:3000'); trackAction('settings', 'update_api_url') }
+    else if (editModal.key === 'apiKey') { await setApiKey(trimmed); trackAction('settings', 'update_api_key') }
+    else if (editModal.key === 'deepseekKey') { await setDeepseekKey(trimmed); trackAction('settings', 'update_deepseek_key') }
     setEditModal(null)
   }
 
