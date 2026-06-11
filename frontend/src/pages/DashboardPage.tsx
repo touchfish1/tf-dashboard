@@ -23,13 +23,13 @@ function dd(iso: string) { const d = new Date(iso); return d.toLocaleDateString(
 
 function getGreeting(): string {
   const h = new Date().getHours();
-  if (h >= 5 && h < 12) return "おはよう";
-  if (h >= 12 && h < 18) return "こんにちは";
-  return "こんばんは";
+  if (h >= 5 && h < 12) return "早上好";
+  if (h >= 12 && h < 18) return "下午好";
+  return "晚上好";
 }
 
 function getTimeStr(): string {
-  return new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+  return new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
 }
 
 export default function DashboardPage() {
@@ -97,7 +97,7 @@ export default function DashboardPage() {
         <div className="flex flex-col items-center gap-3">
           <div className="w-5 h-5 rounded-full border-2 animate-spin"
             style={{ borderColor: "var(--color-border)", borderTopColor: "var(--color-accent)" }} />
-          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>Loading...</span>
+          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>加载中...</span>
         </div>
       </div>
     );
