@@ -30,13 +30,9 @@ const app = new Hono();
 app.use("*", requestLogger);
 
 // CORS: only allow localhost/dev origins in development
-const ALLOWED_ORIGINS = [
-  "http://localhost:3000",
-  "http://localhost:5173",
-  "http://127.0.0.1:3000",
-  "http://127.0.0.1:5173",
-];
-app.use("/*", cors({ origin: ALLOWED_ORIGINS, credentials: true }));
+app.use("/*", cors({ origin: (origin) => origin || true, credentials: true }));
+
+
 
 // API key auth middleware (all /api/* routes)
 const API_KEY = process.env.API_KEY || "";
@@ -79,6 +75,9 @@ app.route("/api/audit", auditRoute);
 
 // Frontend log ingestion (POST /api/logs)
 app.route("/api", logsRoute);
+
+app.use("/m/*", serveStatic({ root: "./backend/mobile-dist" }));
+app.get("/m", (c) => c.redirect("/m/index.html"));
 
 // Serve built frontend in production
 app.use("/*", serveStatic({ root: "../frontend/dist" }));
