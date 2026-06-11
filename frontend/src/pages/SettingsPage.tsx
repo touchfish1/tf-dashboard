@@ -46,11 +46,18 @@ export default function SettingsPage() {
   const [linkSaved, setLinkSaved] = useState(false);
   const [editingLink, setEditingLink] = useState<NavLink | null>(null);
 
+  // Background state
+  const [bgUrl, setBgUrl] = useState("");
+  const [bgUrlSaved, setBgUrlSaved] = useState(false);
+  const [bgOpacity, setBgOpacity] = useState("30");
+  const [bgSaving, setBgSaving] = useState(false);
+
   useEffect(() => {
     loadServers();
     loadLinks();
     loadDsKey();
     loadOcConfig();
+    loadBg();
   }, []);
 
   // ── DeepSeek ────────────────────────────────────
@@ -106,6 +113,29 @@ export default function SettingsPage() {
     } finally {
       setOcSaving(false);
     }
+  };
+
+  // ── Background ───────────────────────────────────
+
+  const loadBg = async () => {
+    try {
+      const [urlRes, opRes] = await Promise.all([
+        settingsApi.get("bg_image_url"),
+        settingsApi.get("bg_image_opacity"),
+      ]);
+      if (urlRes.value) { setBgUrl(urlRes.value); setBgUrlSaved(true); }
+      if (opRes.value) setBgOpacity(opRes.value);
+    } catch { /* silent */ }
+  };
+
+  const handleSaveBg = async () => {
+    setBgSaving(true);
+    try {
+      await settingsApi.set("bg_image_url", bgUrl);
+      await settingsApi.set("bg_image_opacity", bgOpacity);
+      setBgUrlSaved(true);
+    } catch { alert("保存失败"); }
+    finally { setBgSaving(false); }
   };
 
   const loadServers = async () => {
@@ -354,6 +384,31 @@ export default function SettingsPage() {
             value="postgresql://zhangyuan@100.125.148.23:5432/tf_dashboard"
             connected
           />
+
+          {/* 背景图片设置 */}
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1.5">背景图片 URL</label>
+            <div className="flex items-center gap-3">
+              <input type="text" value={bgUrl} onChange={(e) => setBgUrl(e.target.value)}
+                placeholder="https://example.com/wallpaper.jpg"
+                className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors font-mono" />
+              {bgUrlSaved && <span className="text-emerald-400 text-xs shrink-0">✓</span>}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1.5">背景透明度 ({bgOpacity}%)</label>
+            <div className="flex items-center gap-3">
+              <input type="range" min="5" max="80" value={bgOpacity}
+                onChange={(e) => setBgOpacity(e.target.value)}
+                className="flex-1 accent-pink-500 h-1.5 rounded-full cursor-pointer"
+                style={{ accentColor: "var(--color-accent)" }} />
+              <button onClick={handleSaveBg}
+                disabled={bgSaving}
+                className="px-4 py-2 text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors disabled:opacity-50 shrink-0">
+                {bgSaving ? "保存中..." : "保存"}
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 

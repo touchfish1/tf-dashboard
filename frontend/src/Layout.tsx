@@ -10,7 +10,7 @@ import {
   Plus,
 } from "@phosphor-icons/react";
 import type { Server as ServerType } from "./types";
-import { serversApi } from "./api";
+import { serversApi, settingsApi } from "./api";
 
 const NAV = [
   { to: "/dashboard", label: "总览", icon: ChartPieSlice },
@@ -25,8 +25,14 @@ export default function Layout() {
   const [servers, setServers] = useState<ServerType[]>([]);
   const [srvOpen, setSrvOpen] = useState(false);
   const dd = useRef<HTMLDivElement>(null);
+  const [bgUrl, setBgUrl] = useState("");
+  const [bgOpacity, setBgOpacity] = useState("30");
 
   useEffect(() => { serversApi.list().then(setServers).catch(() => {}); }, []);
+  useEffect(() => {
+    settingsApi.get("bg_image_url").then(r => { if (r.value) setBgUrl(r.value); }).catch(() => {});
+    settingsApi.get("bg_image_opacity").then(r => { if (r.value) setBgOpacity(r.value); }).catch(() => {});
+  }, []);
   useEffect(() => {
     const cb = (e: MouseEvent) => { if (dd.current && !dd.current.contains(e.target as Node)) setSrvOpen(false); };
     document.addEventListener("mousedown", cb);
@@ -36,7 +42,19 @@ export default function Layout() {
   const isSrv = loc.pathname.startsWith("/server");
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--color-surface)" }}>
+    <div className="min-h-screen relative" style={{ background: "var(--color-surface)" }}>
+      {/* 背景图片 */}
+      {bgUrl && (
+        <div className="fixed inset-0 pointer-events-none z-0"
+          style={{
+            backgroundImage: `url(${bgUrl})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            opacity: parseInt(bgOpacity) / 100,
+          }} />
+      )}
+      <div className="relative z-10">
       <header className="sticky top-0 z-50 border-b" style={{ borderColor: "var(--color-border)", background: "color-mix(in srgb, var(--color-surface) 88%, transparent)", backdropFilter: "blur(12px)" }}>
         <div className="flex items-center h-12 px-6 max-w-[1400px] mx-auto gap-1">
           <NavLink to="/dashboard" className="flex items-center gap-2 mr-4 shrink-0">
@@ -94,6 +112,7 @@ export default function Layout() {
         </div>
       </header>
       <main className="max-w-[1400px] mx-auto px-6 py-6"><Outlet /></main>
+      </div>
     </div>
   );
 }
