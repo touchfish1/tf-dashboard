@@ -12,8 +12,25 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ArrowDown } from "@phosphor-icons/react";
+import { cn } from "@/lib/utils";
+import { downloadCSV } from "@/lib/export";
 import { opencodeApi } from "../api";
 import type { OpenCodeUsage } from "../types";
+
+// ─── shadcn components ───────────────────────────
+
+import { Card, CardHeader, CardTitle, CardContent, CardAction } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ─── Helpers ─────────────────────────────────────
 
@@ -72,13 +89,13 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-zinc-100">{title}</h2>
-        {titleRight}
-      </div>
-      {children}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        {titleRight && <CardAction>{titleRight}</CardAction>}
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   );
 }
 
@@ -159,11 +176,11 @@ function SortableTh({
   onClick: () => void;
 }) {
   return (
-    <th
+    <TableHead
       onClick={onClick}
-      className="py-2.5 px-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer select-none hover:text-zinc-300 transition-colors"
+      className="cursor-pointer select-none text-muted-foreground hover:text-foreground transition-colors"
     >
-      <span className="inline-flex items-center gap-1">
+      <span className="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wider">
         {label}
         {active && dir && (
           <ArrowDown
@@ -175,7 +192,7 @@ function SortableTh({
           />
         )}
       </span>
-    </th>
+    </TableHead>
   );
 }
 
@@ -183,20 +200,44 @@ function SortableTh({
 
 function LoadingSkeleton() {
   return (
-    <div className="p-6 space-y-6 bg-zinc-950">
+    <div className="space-y-6">
+      {/* Top bar skeleton */}
       <div className="flex items-center justify-between">
-        <div className="h-7 w-44 bg-zinc-800 rounded-md animate-pulse" />
-        <div className="h-7 w-28 bg-zinc-800 rounded-lg animate-pulse" />
+        <Skeleton className="h-7 w-44" />
+        <Skeleton className="h-7 w-28 rounded-lg" />
       </div>
+      {/* Row 1: Token Usage + Cost Trend */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="h-[350px] bg-zinc-900/30 border border-zinc-800 rounded-xl animate-pulse" />
-        <div className="h-[350px] bg-zinc-900/30 border border-zinc-800 rounded-xl animate-pulse" />
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-[300px] w-full" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-[300px] w-full" />
+          </CardContent>
+        </Card>
       </div>
+      {/* Row 2: Cost by Agent + Cache Hit Ratio */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="h-[370px] bg-zinc-900/30 border border-zinc-800 rounded-xl animate-pulse" />
-        <div className="h-[370px] bg-zinc-900/30 border border-zinc-800 rounded-xl animate-pulse" />
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-[320px] w-full" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-[320px] w-full" />
+          </CardContent>
+        </Card>
       </div>
-      <div className="h-[420px] bg-zinc-900/30 border border-zinc-800 rounded-xl animate-pulse" />
+      {/* Table skeleton */}
+      <Card>
+        <CardContent className="p-6">
+          <Skeleton className="h-[420px] w-full" />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -209,66 +250,86 @@ function ErrorState({
   onRetry: () => void;
 }) {
   return (
-    <div className="p-6 bg-zinc-950">
-      <div className="flex flex-col items-center justify-center h-96 gap-3">
-        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#ef4444"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-        </div>
-        <p className="text-sm text-zinc-400 max-w-md text-center">{message}</p>
-        <button
-          onClick={onRetry}
-          className="px-4 py-2 text-xs font-medium rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors"
-        >
-          Retry
-        </button>
-      </div>
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <Card className="max-w-md w-full">
+        <CardContent className="flex flex-col items-center gap-4 py-12">
+          <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-destructive"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <p className="text-sm text-muted-foreground text-center max-w-md">
+            {message}
+          </p>
+          <Button variant="secondary" size="sm" onClick={onRetry}>
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="p-6 bg-zinc-950">
-      <div className="flex flex-col items-center justify-center h-96 gap-3">
-        <div className="w-12 h-12 rounded-full bg-zinc-800/50 flex items-center justify-center">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#71717a"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-        </div>
-        <p className="text-sm text-zinc-500">
-          暂无用量数据 for the selected period.
-        </p>
-        <p className="text-xs text-zinc-600">
-          请尝试更长的时间范围 or 检查数据源.
-        </p>
-      </div>
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <Card className="max-w-md w-full">
+        <CardContent className="flex flex-col items-center gap-4 py-12">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-muted-foreground"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            暂无用量数据 for the selected period.
+          </p>
+          <p className="text-xs text-muted-foreground/60">
+            请尝试更长的时间范围 or 检查数据源.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
+// ─── Themed tooltip style ────────────────────────
+
+const tooltipContentStyle: React.CSSProperties = {
+  background: "var(--card)",
+  border: "1px solid var(--border)",
+  borderRadius: "var(--radius-lg)",
+  fontSize: 12,
+  boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+};
+
+const tooltipLabelStyle: React.CSSProperties = {
+  color: "var(--foreground)",
+  marginBottom: 4,
+};
 
 // ─── Main Component ──────────────────────────────
 
@@ -290,7 +351,7 @@ export default function OpenCodePage() {
     setError(null);
     setPage(0);
     opencodeApi
-      .usage(days)
+      .usageRaw(days, 200)
       .then((res) => setData(res))
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
@@ -423,24 +484,40 @@ export default function OpenCodePage() {
   // ── Render ───────────────────────────────────
 
   return (
-    <div className="p-6 space-y-6 bg-zinc-950">
+    <div className="space-y-6">
       {/* ── Top Bar ─────────────────────────────── */}
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-zinc-100">OpenCode Usage</h1>
-        <div className="flex gap-1 bg-zinc-900 rounded-lg p-0.5">
+      <header className="flex items-center justify-between flex-wrap gap-2">
+        <h1 className="text-xl font-bold text-foreground">OpenCode Usage</h1>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              const rows = data.map((r) => [
+                r.bucketStart, r.model, r.agent,
+                String(r.tokensInput), String(r.tokensOutput), String(r.tokensReasoning),
+                r.cost, String(r.sessionCount),
+              ]);
+              downloadCSV("opencode-usage.csv",
+                ["时间", "模型", "Agent", "输入Token", "输出Token", "推理Token", "费用", "会话数"],
+                rows,
+              );
+            }}
+          >
+            导出 CSV
+          </Button>
+          <div className="inline-flex gap-1 bg-muted rounded-lg p-0.5">
           {([7, 30, 90] as TimeRange[]).map((d) => (
-            <button
+            <Button
               key={d}
+              variant={days === d ? "secondary" : "ghost"}
+              size="xs"
               onClick={() => handleTimeRange(d)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                days === d
-                  ? "bg-zinc-700 text-zinc-100"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
             >
               {d}d
-            </button>
+            </Button>
           ))}
+          </div>
         </div>
       </header>
 
@@ -464,31 +541,25 @@ export default function OpenCodePage() {
                   <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis
                 dataKey="label"
-                stroke="#71717a"
+                stroke="var(--muted-foreground)"
                 fontSize={11}
                 tickLine={false}
-                axisLine={{ stroke: "#27272a" }}
+                axisLine={{ stroke: "var(--border)" }}
                 interval="preserveStartEnd"
               />
               <YAxis
-                stroke="#71717a"
+                stroke="var(--muted-foreground)"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={formatTokens}
               />
               <Tooltip
-                contentStyle={{
-                  background: "#18181b",
-                  border: "1px solid #27272a",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-                }}
-                labelStyle={{ color: "#e4e4e7", marginBottom: 4 }}
+                contentStyle={tooltipContentStyle}
+                labelStyle={tooltipLabelStyle}
                 itemStyle={{ padding: "2px 0" }}
                 formatter={(value: any) => formatTokens(value)}
               />
@@ -535,32 +606,27 @@ export default function OpenCodePage() {
               </defs>
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#27272a"
+                stroke="var(--border)"
                 vertical={false}
               />
               <XAxis
                 dataKey="label"
-                stroke="#71717a"
+                stroke="var(--muted-foreground)"
                 fontSize={11}
                 tickLine={false}
-                axisLine={{ stroke: "#27272a" }}
+                axisLine={{ stroke: "var(--border)" }}
                 interval="preserveStartEnd"
               />
               <YAxis
-                stroke="#71717a"
+                stroke="var(--muted-foreground)"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: number) => `$${v.toFixed(2)}`}
               />
               <Tooltip
-                contentStyle={{
-                  background: "#18181b",
-                  border: "1px solid #27272a",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-                }}
+                contentStyle={tooltipContentStyle}
+                labelStyle={tooltipLabelStyle}
                 formatter={(value: any) => `$${(value ?? 0).toFixed(2)}`}
               />
               <Bar
@@ -586,12 +652,12 @@ export default function OpenCodePage() {
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#27272a"
+                stroke="var(--border)"
                 horizontal={false}
               />
               <XAxis
                 type="number"
-                stroke="#71717a"
+                stroke="var(--muted-foreground)"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -600,20 +666,14 @@ export default function OpenCodePage() {
               <YAxis
                 type="category"
                 dataKey="agent"
-                stroke="#d4d4d8"
+                stroke="var(--foreground)"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
                 width={120}
               />
               <Tooltip
-                contentStyle={{
-                  background: "#18181b",
-                  border: "1px solid #27272a",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-                }}
+                contentStyle={tooltipContentStyle}
                 formatter={(value: any) => `$${(value ?? 0).toFixed(2)}`}
               />
               <Bar
@@ -638,14 +698,14 @@ export default function OpenCodePage() {
             <CacheGauge ratio={cacheMetrics.ratio} />
             <div className="mt-4 grid grid-cols-2 gap-8">
               <div className="text-center">
-                <div className="text-xs text-zinc-500 mb-1">Cache Read</div>
+                <div className="text-xs text-muted-foreground mb-1">Cache Read</div>
                 <div className="text-sm font-semibold text-emerald-400 font-mono">
                   {formatTokens(cacheMetrics.read)}
                 </div>
               </div>
               <div className="text-center">
-                <div className="text-xs text-zinc-500 mb-1">Cache Write</div>
-                <div className="text-sm font-semibold text-zinc-300 font-mono">
+                <div className="text-xs text-muted-foreground mb-1">Cache Write</div>
+                <div className="text-sm font-semibold text-foreground font-mono">
                   {formatTokens(cacheMetrics.write)}
                 </div>
               </div>
@@ -655,19 +715,20 @@ export default function OpenCodePage() {
       </div>
 
       {/* ── Row 3: Sessions Table ──────────────── */}
-      <ChartCard
-        title="会话"
-        titleRight={
-          <span className="text-xs text-zinc-500">
-            {sortedData.length} session
-            {sortedData.length !== 1 ? "s" : ""}
-          </span>
-        }
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-800">
+      <Card>
+        <CardHeader>
+          <CardTitle>会话</CardTitle>
+          <CardAction>
+            <Badge variant="outline" className="font-mono">
+              {sortedData.length} session
+              {sortedData.length !== 1 ? "s" : ""}
+            </Badge>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
                 {TABLE_COLUMNS.map((col) => (
                   <SortableTh
                     key={col.key}
@@ -677,57 +738,55 @@ export default function OpenCodePage() {
                     onClick={() => handleSort(col.key)}
                   />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {pageData.map((row) => (
-                <tr
-                  key={row.id}
-                  className="border-b border-zinc-800 hover:bg-zinc-800/50 transition-colors"
-                >
-                  <td className="py-2.5 px-3 text-zinc-300 whitespace-nowrap">
+                <TableRow key={row.id}>
+                  <TableCell className="text-muted-foreground whitespace-nowrap">
                     {formatDateTime(row.bucketStart)}
-                  </td>
-                  <td className="py-2.5 px-3 text-zinc-300">{row.model}</td>
-                  <td className="py-2.5 px-3 text-zinc-300">{row.agent}</td>
-                  <td className="py-2.5 px-3 text-zinc-400 text-right font-mono tabular-nums">
+                  </TableCell>
+                  <TableCell className="text-foreground">{row.model}</TableCell>
+                  <TableCell className="text-foreground">{row.agent}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
                     {formatTokens(row.tokensInput)}
-                  </td>
-                  <td className="py-2.5 px-3 text-zinc-400 text-right font-mono tabular-nums">
+                  </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
                     {formatTokens(row.tokensOutput)}
-                  </td>
-                  <td className="py-2.5 px-3 text-zinc-300 text-right font-mono tabular-nums">
+                  </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums text-foreground">
                     {formatCost(row.cost)}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-
+            </TableBody>
+          </Table>
+        </CardContent>
         {/* Pagination */}
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800">
-          <span className="text-xs text-zinc-500">
+        <div className="flex items-center justify-between border-t border-border px-(--card-spacing) py-(--card-spacing)">
+          <span className="text-xs text-muted-foreground">
             Page {page + 1} of {pageCount}
           </span>
           <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            <Button
+              variant="outline"
+              size="sm"
               disabled={page === 0}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
             >
               Prev
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               disabled={page >= pageCount - 1}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
             >
               Next
-            </button>
+            </Button>
           </div>
         </div>
-      </ChartCard>
+      </Card>
     </div>
   );
 }

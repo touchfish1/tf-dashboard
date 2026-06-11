@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import type { DeepSeekBalance } from "../types";
 import { deepseekApi, settingsApi } from "../api";
+import { Button } from "@/components/ui/button";
+import { downloadCSV } from "@/lib/export";
 import {
-  LineChart,
-  Line,
   Area,
   AreaChart,
   ResponsiveContainer,
@@ -13,6 +13,9 @@ import {
   CartesianGrid,
 } from "recharts";
 import { WarningCircle } from "@phosphor-icons/react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ─── Types ───────────────────────────────────────────
 
@@ -60,8 +63,8 @@ function ChartTooltip({
   if (!active || !payload?.length) return null;
   const data = payload[0].payload;
   return (
-    <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 shadow-xl text-sm">
-      <p className="text-zinc-400 text-xs mb-1">
+    <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-xl text-sm">
+      <p className="text-muted-foreground text-xs mb-1">
         {new Date(data.recordedAt).toLocaleString("zh-CN", {
           month: "short",
           day: "numeric",
@@ -69,7 +72,7 @@ function ChartTooltip({
           minute: "2-digit",
         })}
       </p>
-      <p className="text-zinc-100 font-mono font-medium">
+      <p className="text-card-foreground font-mono font-medium">
         {formatYuan(data.balanceTotal)}
       </p>
       {data.isTopUp && (
@@ -117,16 +120,18 @@ function BalanceCard({
   large?: boolean;
 }) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col gap-1 transition-colors hover:border-zinc-700">
-      <span className="text-zinc-400 text-sm">{label}</span>
-      <span
-        className={`font-mono text-zinc-100 ${
-          large ? "text-3xl font-bold" : "text-xl font-semibold"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
+    <Card className="transition-colors hover:ring-foreground/20">
+      <CardContent className="flex flex-col gap-1">
+        <span className="text-sm text-muted-foreground">{label}</span>
+        <span
+          className={`font-mono text-card-foreground ${
+            large ? "text-3xl font-bold" : "text-xl font-semibold"
+          }`}
+        >
+          {value}
+        </span>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -178,8 +183,6 @@ export default function DeepSeekPage() {
 
   // ─── Derived state ────────────────────────────────
 
-  // Directly check settings table for key existence,
-  // instead of inferring from balance data (poller may not have run yet).
   const noKeyWarning = hasKey === false;
 
   // Chart data with top-up detection
@@ -197,8 +200,37 @@ export default function DeepSeekPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full text-zinc-400 text-sm">
-        Loading...
+      <div className="p-6 space-y-6">
+        {/* Top bar skeleton */}
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-7 w-44" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-5 w-14 rounded-full" />
+            <Skeleton className="h-5 w-28" />
+          </div>
+        </div>
+
+        {/* Balance cards skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[0, 1, 2].map((i) => (
+            <Card key={i}>
+              <CardContent className="flex flex-col gap-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className={i === 0 ? "h-9 w-28" : "h-7 w-20"} />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Chart skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-4 w-32" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-72 w-full" />
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -208,9 +240,11 @@ export default function DeepSeekPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="bg-red-900/20 border border-red-800/30 rounded-lg px-6 py-4 text-red-400 text-sm">
-          {error}
-        </div>
+        <Card className="bg-destructive/10 ring-destructive/20">
+          <CardContent className="text-destructive text-sm">
+            {error}
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -220,12 +254,14 @@ export default function DeepSeekPage() {
   if (noKeyWarning) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-start gap-3 text-amber-400 max-w-lg">
-          <WarningCircle size={20} className="mt-0.5 shrink-0" />
-          <p className="text-sm leading-relaxed">
-            未配置 DeepSeek API 密钥，请在设置页面中配置。
-          </p>
-        </div>
+        <Card className="bg-amber-500/10 ring-amber-500/30 max-w-lg">
+          <CardContent className="flex items-start gap-3">
+            <WarningCircle size={20} className="mt-0.5 shrink-0 text-amber-400" />
+            <p className="text-sm leading-relaxed text-amber-400">
+              未配置 DeepSeek API 密钥，请在设置页面中配置。
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -236,17 +272,32 @@ export default function DeepSeekPage() {
     <div className="p-6 space-y-6">
       {/* ── Top Bar ── */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-zinc-100">DeepSeek API</h1>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="flex items-center gap-1.5 text-emerald-400">
+        <h1 className="text-xl font-semibold text-foreground">DeepSeek API</h1>
+        <div className="flex items-center gap-2 text-sm">
+          <Badge variant="secondary" className="flex items-center gap-1.5 text-emerald-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             Live
-          </span>
+          </Badge>
           {lastUpdate && (
-            <span className="text-zinc-500 tabular-nums">
+            <span className="text-muted-foreground tabular-nums">
               updated {formatTime(lastUpdate)}
             </span>
           )}
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              const rows = history.map((h) => [
+                h.recordedAt,
+                h.balanceTotal,
+                h.balanceGranted,
+                h.balanceToppedUp,
+              ]);
+              downloadCSV("deepseek-balance.csv", ["时间", "总余额", "赠送余额", "充值余额"], rows);
+            }}
+          >
+            导出 CSV
+          </Button>
         </div>
       </div>
 
@@ -271,66 +322,70 @@ export default function DeepSeekPage() {
 
       {/* ── Balance History Chart ── */}
       {chartData.length > 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-          <h2 className="text-sm font-medium text-zinc-300 mb-4">
-            Balance History
-          </h2>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient
-                    id="balanceGradient"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#27272a"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="recordedAt"
-                  tickFormatter={formatDate}
-                  stroke="#52525b"
-                  tick={{ fill: "#52525b", fontSize: 12 }}
-                  axisLine={{ stroke: "#27272a" }}
-                  tickLine={false}
-                  minTickGap={40}
-                />
-                <YAxis
-                  tickFormatter={(v: number) => `¥${v.toFixed(2)}`}
-                  stroke="#52525b"
-                  tick={{ fill: "#52525b", fontSize: 12 }}
-                  axisLine={{ stroke: "#27272a" }}
-                  tickLine={false}
-                  width={72}
-                />
-                <Tooltip content={<ChartTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="balanceTotalNum"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                  fill="url(#balanceGradient)"
-                  dot={<TopUpDot />}
-                  activeDot={{
-                    r: 4,
-                    fill: "#8b5cf6",
-                    stroke: "#09090b",
-                    strokeWidth: 2,
-                  }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Balance History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient
+                      id="balanceGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#27272a"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="recordedAt"
+                    tickFormatter={formatDate}
+                    stroke="#52525b"
+                    tick={{ fill: "#52525b", fontSize: 12 }}
+                    axisLine={{ stroke: "#27272a" }}
+                    tickLine={false}
+                    minTickGap={40}
+                  />
+                  <YAxis
+                    tickFormatter={(v: number) => `¥${v.toFixed(2)}`}
+                    stroke="#52525b"
+                    tick={{ fill: "#52525b", fontSize: 12 }}
+                    axisLine={{ stroke: "#27272a" }}
+                    tickLine={false}
+                    width={72}
+                  />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="balanceTotalNum"
+                    stroke="#8b5cf6"
+                    strokeWidth={2}
+                    fill="url(#balanceGradient)"
+                    dot={<TopUpDot />}
+                    activeDot={{
+                      r: 4,
+                      fill: "#8b5cf6",
+                      stroke: "#09090b",
+                      strokeWidth: 2,
+                    }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 import type {
   Server, ServerMetrics, ServerSummary,
-  OpenCodeUsage, OpenCodeSummary, OpenCodeByModel,
-  DeepSeekBalance, NavLink,
+  OpenCodeUsage, OpenCodeDailyUsage, OpenCodeSummary, OpenCodeByModel,
+  DeepSeekBalance, NavLink, Alert, DashboardConfig, DashboardSection,
 } from "./types";
 
 const BASE = "/api";
@@ -68,7 +68,11 @@ export const serversApi = {
 // ─── OpenCode ────────────────────────────────────
 export const opencodeApi = {
   summary: () => get<OpenCodeSummary>("/api/opencode/summary"),
-  usage: (days = 7) => get<OpenCodeUsage[]>("/api/opencode/usage", { days: String(days) }),
+  /** Daily-aggregated usage (server-side group by day) */
+  usage: (days = 7) => get<OpenCodeDailyUsage[]>("/api/opencode/usage", { days: String(days) }),
+  /** Per-record raw usage (for detail table) */
+  usageRaw: (days = 7, limit = 200) =>
+    get<OpenCodeUsage[]>("/api/opencode/usage", { days: String(days), raw: "true", limit: String(limit) }),
   byModel: (days = 7) => get<OpenCodeByModel[]>("/api/opencode/by-model", { days: String(days) }),
 };
 
@@ -86,6 +90,38 @@ export const linksApi = {
   update: (id: number, b: { title?: string; url?: string; category?: string }) =>
     put<NavLink>(`/links/${id}`, b),
   remove: (id: number) => del(`/links/${id}`),
+};
+
+// ─── Alerts ────────────────────────────────────────
+export const alertsApi = {
+  list: (limit = 50) => get<Alert[]>(`/api/alerts?limit=${limit}`),
+  unread: () => get<{ count: number }>("/api/alerts/unread"),
+  ack: (id: number) => post(`/alerts/${id}/ack`, {}),
+  ackAll: (type?: string) => post("/alerts/ack-all", type ? { type } : {}),
+};
+
+const DEFAULT_SECTIONS: DashboardSection[] = [
+  { id: "links", title: "常用链接", visible: true },
+  { id: "stats", title: "统计概览", visible: true },
+  { id: "charts", title: "用量图表", visible: true },
+  { id: "servers", title: "服务器状态", visible: true },
+];
+
+const DEFAULT_CONFIG: DashboardConfig = { sections: DEFAULT_SECTIONS };
+
+export const dashboardConfigApi = {
+  async get(): Promise<DashboardConfig> {
+    try {
+      const res = await settingsApi.get("dashboard_config");
+      if (!res.value) return DEFAULT_CONFIG;
+      return JSON.parse(res.value) as DashboardConfig;
+    } catch {
+      return DEFAULT_CONFIG;
+    }
+  },
+  async save(config: DashboardConfig): Promise<void> {
+    await settingsApi.set("dashboard_config", JSON.stringify(config));
+  },
 };
 
 // ─── Settings ─────────────────────────────────────

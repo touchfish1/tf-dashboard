@@ -9,7 +9,24 @@ import {
 import { linksApi, serversApi, settingsApi } from "../api";
 import type { NavLink, Server } from "../types";
 
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { useToast } from "@/components/Toast";
+
 export default function SettingsPage() {
+  const { toast } = useToast();
   const [servers, setServers] = useState<Server[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +60,7 @@ export default function SettingsPage() {
   const [linkFormTitle, setLinkFormTitle] = useState("");
   const [linkFormUrl, setLinkFormUrl] = useState("");
   const [linkFormCategory, setLinkFormCategory] = useState("");
-  const [linkSaved, setLinkSaved] = useState(false);
+
   const [editingLink, setEditingLink] = useState<NavLink | null>(null);
 
   // Background state
@@ -77,8 +94,9 @@ export default function SettingsPage() {
       await settingsApi.set("deepseek_api_key", dsKey);
       setDsKeySaved(true);
       setDsKeyMasked(true);
+      toast("success", "DeepSeek API 密钥已保存");
     } catch {
-      alert("保存失败");
+      toast("error", "保存失败");
     } finally {
       setDsKeySaving(false);
     }
@@ -109,8 +127,9 @@ export default function SettingsPage() {
       setOcUrlSaved(true);
       setOcKeySaved(true);
       setOcKeyMasked(true);
+      toast("success", "OpenCode 配置已保存");
     } catch {
-      alert("保存失败");
+      toast("error", "保存失败");
     } finally {
       setOcSaving(false);
     }
@@ -135,13 +154,14 @@ export default function SettingsPage() {
       await settingsApi.set("bg_image_url", bgUrl);
       await settingsApi.set("bg_image_opacity", bgOpacity);
       setBgUrlSaved(true);
-    } catch { alert("保存失败"); }
+      toast("success", "背景设置已保存");
+    } catch { toast("error", "保存失败"); }
     finally { setBgSaving(false); }
   };
 
   const handleUploadBg = async (file: File) => {
-    if (!file.type.startsWith("image/")) { alert("只支持图片文件"); return; }
-    if (file.size > 5 * 1024 * 1024) { alert("文件不能超过 5MB"); return; }
+    if (!file.type.startsWith("image/")) { toast("error", "只支持图片文件"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast("error", "文件不能超过 5MB"); return; }
     setBgUploading(true);
     try {
       const form = new FormData();
@@ -153,7 +173,7 @@ export default function SettingsPage() {
         setBgUrlSaved(true);
         await settingsApi.set("bg_image_url", data.url);
       }
-    } catch { alert("上传失败"); }
+    } catch { toast("error", "上传失败"); }
     finally { setBgUploading(false); }
   };
 
@@ -196,8 +216,9 @@ export default function SettingsPage() {
       setFormUrl("");
       setFormLabels("");
       await loadServers();
+      toast("success", editingServer ? "服务器已更新" : "服务器已添加");
     } catch (e) {
-      alert(e instanceof Error ? e.message : "保存服务器失败");
+      toast("error", e instanceof Error ? e.message : "保存服务器失败");
     } finally {
       setSaving(false);
     }
@@ -216,8 +237,9 @@ export default function SettingsPage() {
     try {
       await serversApi.remove(id);
       await loadServers();
+      toast("success", "服务器已删除");
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to delete server");
+      toast("error", e instanceof Error ? e.message : "删除服务器失败");
     }
   };
 
@@ -267,10 +289,9 @@ export default function SettingsPage() {
       setLinkFormUrl("");
       setLinkFormCategory("");
       await loadLinks();
-      setLinkSaved(true);
-      setTimeout(() => setLinkSaved(false), 2000);
+      toast("success", editingLink ? "链接已更新" : "链接已添加");
     } catch (e) {
-      alert(e instanceof Error ? e.message : "添加链接失败");
+      toast("error", e instanceof Error ? e.message : "保存链接失败");
     } finally {
       setLinkSaving(false);
     }
@@ -289,130 +310,129 @@ export default function SettingsPage() {
     try {
       await linksApi.remove(id);
       await loadLinks();
+      toast("success", "链接已删除");
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to delete link");
+      toast("error", e instanceof Error ? e.message : "删除链接失败");
     }
   };
 
   return (
-    <div className="p-6 space-y-8">
-      <h1 className="text-lg font-semibold text-zinc-100">Settings</h1>
+    <div className="space-y-6 p-6">
+      <h1 className="text-lg font-semibold text-foreground">Settings</h1>
 
       {/* ── Section 1: Data Sources ──────────────────── */}
-      <section>
-        <h2 className="text-sm font-medium text-zinc-300 mb-3">Data Sources</h2>
-        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-5 space-y-5">
+      <Card>
+        <CardHeader>
+          <CardTitle>Data Sources</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
           <DataSourceItem
             label="OpenCode 数据库路径"
             value="~/.local/share/opencode/opencode.db"
             connected
           />
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1.5">
-              DeepSeek API 密钥
-            </label>
+
+          <Separator />
+
+          <div className="space-y-1.5">
+            <Label>DeepSeek API 密钥</Label>
             <div className="flex items-center gap-3">
               <div className="flex-1 relative">
-                <input
+                <Input
                   type={dsKeyMasked && dsKeySaved ? "password" : "text"}
                   value={dsKey}
                   onChange={(e) => { setDsKey(e.target.value); setDsKeySaved(false); }}
                   placeholder="输入 DeepSeek API 密钥"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 pr-9 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors font-mono"
+                  className="pr-9 font-mono"
                 />
                 {dsKeySaved && dsKey && (
                   <button
                     onClick={() => setDsKeyMasked(!dsKeyMasked)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-zinc-500 hover:text-zinc-300"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                   >
                     {dsKeyMasked ? "显示" : "隐藏"}
                   </button>
                 )}
               </div>
-              {dsKeySaved && (
-                <span className="text-emerald-400 text-xs whitespace-nowrap">✓ 已保存</span>
-              )}
-              <button
+              <Button
                 onClick={handleSaveDsKey}
                 disabled={dsKeySaving || !dsKey.trim()}
-                className="px-4 py-2 text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors disabled:opacity-50"
               >
                 {dsKeySaving ? "保存中..." : "保存"}
-              </button>
+              </Button>
             </div>
           </div>
-          {/* OpenCode API */}
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1.5">
-              OpenCode API 地址
-            </label>
+
+          <Separator />
+
+          <div className="space-y-1.5">
+            <Label>OpenCode API 地址</Label>
             <div className="flex items-center gap-3">
               <div className="flex-1">
-                <input
+                <Input
                   type="text"
                   value={ocUrl}
                   onChange={(e) => { setOcUrl(e.target.value); setOcUrlSaved(false); }}
                   placeholder="https://example.com/api/opencode/usage"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors font-mono"
+                  className="font-mono"
                 />
               </div>
-              {ocUrlSaved && ocUrl && (
-                <span className="text-emerald-400 text-xs whitespace-nowrap">✓ 已保存</span>
-              )}
             </div>
           </div>
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1.5">
-              OpenCode API 密钥
-            </label>
+
+          <div className="space-y-1.5">
+            <Label>OpenCode API 密钥</Label>
             <div className="flex items-center gap-3">
               <div className="flex-1 relative">
-                <input
+                <Input
                   type={ocKeyMasked && ocKeySaved ? "password" : "text"}
                   value={ocKey}
                   onChange={(e) => { setOcKey(e.target.value); setOcKeySaved(false); }}
                   placeholder="输入 OpenCode API 密钥"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 pr-9 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors font-mono"
+                  className="pr-9 font-mono"
                 />
                 {ocKeySaved && ocKey && (
                   <button
                     onClick={() => setOcKeyMasked(!ocKeyMasked)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-zinc-500 hover:text-zinc-300"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                   >
                     {ocKeyMasked ? "显示" : "隐藏"}
                   </button>
                 )}
               </div>
-              {ocKeySaved && (
-                <span className="text-emerald-400 text-xs whitespace-nowrap">✓ 已保存</span>
-              )}
-              <button
+              <Button
                 onClick={handleSaveOcConfig}
                 disabled={ocSaving}
-                className="px-4 py-2 text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors disabled:opacity-50"
               >
                 {ocSaving ? "保存中..." : "保存"}
-              </button>
+              </Button>
             </div>
-            <p className="text-xs text-zinc-600 mt-1">
-              留空则使用本地 SQLite 数据。Agent 内置端点：<code className="text-zinc-500">http://&lt;agent-host&gt;:9100/api/opencode/sessions</code>
+            <p className="text-xs text-muted-foreground mt-1">
+              留空则使用本地 SQLite 数据。Agent 内置端点：<code className="text-muted-foreground/70">http://&lt;agent-host&gt;:9100/api/opencode/sessions</code>
             </p>
           </div>
+
+          <Separator />
+
           <DataSourceItem
             label="PostgreSQL 连接"
             value="postgresql://zhangyuan@100.125.148.23:5432/tf_dashboard"
             connected
           />
 
+          <Separator />
+
           {/* 背景图片设置 */}
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1.5">背景图片</label>
+          <div className="space-y-1.5">
+            <Label>背景图片</Label>
             <div className="flex items-start gap-4">
-              <label className="flex flex-col items-center justify-center w-32 h-20 rounded-lg border-2 border-dashed cursor-pointer transition-colors"
-                style={{ borderColor: "var(--color-border)", background: bgUrl ? `url(${bgUrl}) center/cover` : "var(--color-surface-raised)" }}>
+              <label
+                className="flex flex-col items-center justify-center w-32 h-20 rounded-lg border-2 border-dashed border-border bg-muted/50 cursor-pointer transition-colors hover:bg-muted"
+                style={bgUrl ? { backgroundImage: `url(${bgUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+              >
                 {!bgUrl && (
                   <div className="text-center">
-                    <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    <span className="text-xs text-muted-foreground">
                       {bgUploading ? "上传中..." : "点击上传"}
                     </span>
                   </div>
@@ -422,373 +442,334 @@ export default function SettingsPage() {
               </label>
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>透明度 {bgOpacity}%</span>
+                  <span className="text-xs text-muted-foreground">透明度 {bgOpacity}%</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <input type="range" min="5" max="80" value={bgOpacity}
                     onChange={(e) => setBgOpacity(e.target.value)}
-                    className="flex-1 h-1.5 rounded-full cursor-pointer"
-                    style={{ accentColor: "var(--color-accent)" }} />
-                  <button onClick={handleSaveBg}
-                    disabled={bgSaving}
-                    className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-50 shrink-0"
-                    style={{ color: "var(--color-text-primary)", background: "var(--color-accent)" }}>
+                    className="flex-1 h-1.5 rounded-full cursor-pointer accent-primary" />
+                  <Button onClick={handleSaveBg} disabled={bgSaving} size="sm">
                     {bgSaving ? "保存中..." : "保存"}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
       {/* ── Section 2: Servers Management ────────────── */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-zinc-300">Servers</h2>
-          <button
+      <Card>
+        <CardHeader>
+          <CardTitle>Servers</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setShowForm((v) => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-300 bg-zinc-800/50 hover:bg-zinc-700/50 rounded-md transition-colors"
           >
             <Plus size={14} weight="bold" />
             Add Server
-          </button>
-        </div>
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Add Server Form */}
+          {showForm && (
+            <Card size="sm" className="mb-4">
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Name</Label>
+                    <Input
+                      type="text"
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      placeholder="sv-01"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Metrics URL</Label>
+                    <Input
+                      type="text"
+                      value={formUrl}
+                      onChange={(e) => setFormUrl(e.target.value)}
+                      placeholder="http://192.168.1.10:9100/metrics"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Labels</Label>
+                    <Input
+                      type="text"
+                      value={formLabels}
+                      onChange={(e) => setFormLabels(e.target.value)}
+                      placeholder="prod,web"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" onClick={handleCancelForm}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving || !formName.trim() || !formUrl.trim()}
+                  >
+                    {saving ? "保存中..." : editingServer ? "更新" : "保存"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Add Server Form */}
-        {showForm && (
-          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-5 mb-4">
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1.5">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="sv-01"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1.5">
-                  Metrics URL
-                </label>
-                <input
-                  type="text"
-                  value={formUrl}
-                  onChange={(e) => setFormUrl(e.target.value)}
-                  placeholder="http://192.168.1.10:9100/metrics"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1.5">
-                  Labels
-                </label>
-                <input
-                  type="text"
-                  value={formLabels}
-                  onChange={(e) => setFormLabels(e.target.value)}
-                  placeholder="prod,web"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={handleCancelForm}
-                className="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || !formName.trim() || !formUrl.trim()}
-                className="px-4 py-2 text-xs font-medium text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? "保存中..." : editingServer ? "更新" : "保存"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Server Table */}
-        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 overflow-hidden">
+          {/* Server Table */}
           {loading ? (
-            <div className="p-8 text-center text-sm text-zinc-500">
+            <div className="p-8 text-center text-sm text-muted-foreground">
               Loading...
             </div>
           ) : error ? (
-            <div className="p-8 text-center text-sm text-red-400">{error}</div>
+            <div className="p-8 text-center text-sm text-destructive">{error}</div>
           ) : servers.length === 0 ? (
-            <div className="p-8 text-center text-sm text-zinc-500">
+            <div className="p-8 text-center text-sm text-muted-foreground">
               暂无服务器
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-zinc-800">
-                  <th className="text-left text-xs font-medium text-zinc-500 py-3 px-4">
-                    Name
-                  </th>
-                  <th className="text-left text-xs font-medium text-zinc-500 py-3 px-4">
-                    Endpoint
-                  </th>
-                  <th className="text-left text-xs font-medium text-zinc-500 py-3 px-4">
-                    Status
-                  </th>
-                  <th className="text-right text-xs font-medium text-zinc-500 py-3 px-4 w-16">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Endpoint</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right w-16">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {servers.map((server) => (
-                  <tr
-                    key={server.id}
-                    className="bg-zinc-900/30 hover:bg-zinc-800/50 border-b border-zinc-800 transition-colors"
-                  >
-                    <td className="py-3 px-4 text-sm text-zinc-300">
-                      {server.name}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-zinc-400 font-mono">
+                  <TableRow key={server.id}>
+                    <TableCell className="font-medium">{server.name}</TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
                       {server.metricsUrl}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
                           server.isActive
-                            ? "bg-emerald-500/10 text-emerald-400"
-                            : "bg-zinc-500/10 text-zinc-500"
-                        }`}
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : "bg-muted/10 text-muted-foreground border-border"
+                        }
                       >
                         <span
                           className={`w-1.5 h-1.5 rounded-full ${
-                            server.isActive ? "bg-emerald-500" : "bg-zinc-500"
+                            server.isActive ? "bg-emerald-500" : "bg-muted-foreground"
                           }`}
                         />
                         {server.isActive ? "Online" : "Offline"}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => handleEditServer(server)}
-                        className="p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors rounded"
-                        title="编辑"
-                      >
-                        <NotePencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(server.id)}
-                        className="p-1.5 text-red-500 hover:text-red-400 transition-colors rounded"
-                        title="删除"
-                      >
-                        <TrashSimple size={16} />
-                      </button>
-                    </td>
-                  </tr>
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleEditServer(server)}
+                          title="编辑"
+                        >
+                          <NotePencil size={16} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleDelete(server.id)}
+                          title="删除"
+                          className="text-destructive hover:text-destructive/80"
+                        >
+                          <TrashSimple size={16} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
       {/* ── Section 3: 网址导航 (Link Management) ──── */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <h2 className="text-sm font-medium text-zinc-300">网址导航</h2>
-            {linkSaved && <span className="text-xs text-emerald-400">✓ 已保存</span>}
-          </div>
-          <button
+      <Card>
+        <CardHeader>
+          <CardTitle>网址导航</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setShowLinkForm((v) => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-300 bg-zinc-800/50 hover:bg-zinc-700/50 rounded-md transition-colors"
           >
             <Plus size={14} weight="bold" />
             添加链接
-          </button>
-        </div>
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Add Link Form */}
+          {showLinkForm && (
+            <Card size="sm" className="mb-4">
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>名称</Label>
+                    <Input
+                      type="text"
+                      value={linkFormTitle}
+                      onChange={(e) => setLinkFormTitle(e.target.value)}
+                      placeholder="DeepSeek"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>网址</Label>
+                    <Input
+                      type="text"
+                      value={linkFormUrl}
+                      onChange={(e) => setLinkFormUrl(e.target.value)}
+                      placeholder="https://chat.deepseek.com"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>分类</Label>
+                    <Input
+                      type="text"
+                      value={linkFormCategory}
+                      onChange={(e) => setLinkFormCategory(e.target.value)}
+                      placeholder="AI"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowLinkForm(false);
+                      setEditingLink(null);
+                      setLinkFormTitle("");
+                      setLinkFormUrl("");
+                      setLinkFormCategory("");
+                    }}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    onClick={handleAddLink}
+                    disabled={linkSaving || !linkFormTitle.trim() || !linkFormUrl.trim()}
+                  >
+                    {linkSaving ? "保存中..." : editingLink ? "更新" : "保存"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Add Link Form */}
-        {showLinkForm && (
-          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-5 mb-4">
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1.5">
-                  名称
-                </label>
-                <input
-                  type="text"
-                  value={linkFormTitle}
-                  onChange={(e) => setLinkFormTitle(e.target.value)}
-                  placeholder="DeepSeek"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1.5">
-                  网址
-                </label>
-                <input
-                  type="text"
-                  value={linkFormUrl}
-                  onChange={(e) => setLinkFormUrl(e.target.value)}
-                  placeholder="https://chat.deepseek.com"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1.5">
-                  分类
-                </label>
-                <input
-                  type="text"
-                  value={linkFormCategory}
-                  onChange={(e) => setLinkFormCategory(e.target.value)}
-                  placeholder="AI"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowLinkForm(false);
-                  setEditingLink(null);
-                  setLinkFormTitle("");
-                  setLinkFormUrl("");
-                  setLinkFormCategory("");
-                }}
-                className="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-300 transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleAddLink}
-                disabled={linkSaving || !linkFormTitle.trim() || !linkFormUrl.trim()}
-                className="px-4 py-2 text-xs font-medium text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {linkSaving ? "保存中..." : editingLink ? "更新" : "保存"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Link Table */}
-        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 overflow-hidden">
+          {/* Link Table */}
           {linksLoading ? (
-            <div className="p-8 text-center text-sm text-zinc-500">
+            <div className="p-8 text-center text-sm text-muted-foreground">
               Loading...
             </div>
           ) : linksError ? (
-            <div className="p-8 text-center text-sm text-red-400">{linksError}</div>
+            <div className="p-8 text-center text-sm text-destructive">{linksError}</div>
           ) : links.length === 0 ? (
-            <div className="p-8 text-center text-sm text-zinc-500">
+            <div className="p-8 text-center text-sm text-muted-foreground">
               暂无链接
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-zinc-800">
-                  <th className="text-left text-xs font-medium text-zinc-500 py-3 px-4">
-                    名称
-                  </th>
-                  <th className="text-left text-xs font-medium text-zinc-500 py-3 px-4">
-                    网址
-                  </th>
-                  <th className="text-left text-xs font-medium text-zinc-500 py-3 px-4">
-                    分类
-                  </th>
-                  <th className="text-right text-xs font-medium text-zinc-500 py-3 px-4 w-16">
-                    操作
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>名称</TableHead>
+                  <TableHead>网址</TableHead>
+                  <TableHead>分类</TableHead>
+                  <TableHead className="text-right w-16">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {links.map((link) => (
-                  <tr
-                    key={link.id}
-                    className="bg-zinc-900/30 hover:bg-zinc-800/50 border-b border-zinc-800 transition-colors"
-                  >
-                    <td className="py-3 px-4 text-sm text-zinc-300">
+                  <TableRow key={link.id}>
+                    <TableCell className="font-medium">
                       {link.icon && (
                         <span className="mr-2">{link.icon}</span>
                       )}
                       {link.title}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-zinc-400 font-mono">
+                    </TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
                       <a
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:text-zinc-300 transition-colors"
+                        className="hover:text-foreground transition-colors"
                       >
                         {link.url}
                       </a>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-zinc-500">
+                    </TableCell>
+                    <TableCell>
                       {link.category && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-800/50 text-zinc-400">
-                          {link.category}
-                        </span>
+                        <Badge variant="secondary">{link.category}</Badge>
                       )}
-                    </td>
-                    <td className="py-3 px-4 text-right flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => handleEditLink(link)}
-                        className="p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors rounded"
-                        title="编辑"
-                      >
-                        <NotePencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteLink(link.id)}
-                        className="p-1.5 text-red-500 hover:text-red-400 transition-colors rounded"
-                        title="删除"
-                      >
-                        <TrashSimple size={16} />
-                      </button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleEditLink(link)}
+                          title="编辑"
+                        >
+                          <NotePencil size={16} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleDeleteLink(link.id)}
+                          title="删除"
+                          className="text-destructive hover:text-destructive/80"
+                        >
+                          <TrashSimple size={16} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
       {/* ── Section 4: Polling Intervals ────────────── */}
-      <section>
-        <h2 className="text-sm font-medium text-zinc-300 mb-3">
-          Polling Intervals
-        </h2>
-        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-5">
-          <div className="grid grid-cols-3 gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Polling Intervals</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <PollingIntervalField label="OpenCode" value="60s" />
             <PollingIntervalField label="Server" value="30s" />
             <PollingIntervalField label="DeepSeek" value="300s" />
           </div>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
       {/* ── Section 5: About ────────────────────────── */}
-      <section>
-        <h2 className="text-sm font-medium text-zinc-300 mb-3">About</h2>
-        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-5 space-y-1">
-          <p className="text-sm text-zinc-300 font-medium">
+      <Card>
+        <CardHeader>
+          <CardTitle>About</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          <p className="text-sm text-card-foreground font-medium">
             tf-dashboard v0.1.0
           </p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             技术栈 Bun + Hono + React + TypeScript + PostgreSQL
           </p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             Data: OpenCode SQLite · DeepSeek API · HTTP /metrics
           </p>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -805,18 +786,17 @@ function DataSourceItem({
   connected: boolean;
 }) {
   return (
-    <div>
-      <label className="block text-xs text-zinc-500 mb-1.5">{label}</label>
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
       <div className="flex items-center gap-3">
-        <code className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-300 font-mono truncate select-all">
-          {value}
-        </code>
-        <span
-          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+        <Input value={value} readOnly className="font-mono truncate" />
+        <Badge
+          variant="outline"
+          className={
             connected
-              ? "bg-emerald-500/10 text-emerald-400"
-              : "bg-red-500/10 text-red-400"
-          }`}
+              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shrink-0"
+              : "bg-destructive/10 text-destructive border-destructive/20 shrink-0"
+          }
         >
           {connected ? (
             <CheckCircle size={12} weight="fill" />
@@ -824,7 +804,7 @@ function DataSourceItem({
             <WarningCircle size={12} weight="fill" />
           )}
           {connected ? "已连接" : "未连接"}
-        </span>
+        </Badge>
       </div>
     </div>
   );
@@ -838,11 +818,9 @@ function PollingIntervalField({
   value: string;
 }) {
   return (
-    <div>
-      <label className="block text-xs text-zinc-500 mb-1.5">{label}</label>
-      <div className="bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-300 select-none cursor-default">
-        {value}
-      </div>
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Input value={value} readOnly className="select-none cursor-default" />
     </div>
   );
 }
