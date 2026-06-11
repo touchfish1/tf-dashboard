@@ -1,0 +1,19 @@
+{
+  "name": "tf-dashboard-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts",
+    "setup-db": "bun run scripts/setup-db.ts"
+  },
+  "dependencies": {
+    "hono": "^4.7.0",
+    "drizzle-orm": "^0.40.0",
+    "postgres": "^3.4.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30.0"
+  }
+}
