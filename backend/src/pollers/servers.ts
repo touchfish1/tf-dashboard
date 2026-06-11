@@ -1,12 +1,8 @@
-/**
- * Server metrics poller.
- * Periodically fetches /metrics from each registered server and stores in PostgreSQL.
- */
-
 import { db } from "../db";
 import { servers, serverMetrics } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { createAlert } from "../lib/alerts";
+import { logger } from "../lib/logger";
 
 interface ServerMetricsResponse {
   hostname: string;
@@ -40,18 +36,17 @@ export async function pollAllServers(): Promise<void> {
 
     for (const server of activeServers) {
       if (!isValidMetricsUrl(server.metricsUrl)) {
-        console.warn(`[poller] ${server.name}: blocked SSRF attempt: ${server.metricsUrl}`);
+        logger.warn({ server: server.name, url: server.metricsUrl, event: "ssrf_blocked" }, "SSRF拦截");
         continue;
       }
       try {
         const resp = await fetch(server.metricsUrl, { signal: AbortSignal.timeout(5000) });
         if (!resp.ok) {
-          console.warn(`[poller] ${server.name}: HTTP ${resp.status}`);
+          logger.warn({ server: server.name, status: resp.status, event: "http_error" }, `HTTP ${resp.status}`);
           continue;
         }
         const data: ServerMetricsResponse = await resp.json();
 
-        // Sum total disk across all mounts
         const totalDiskGb = data.disk.reduce((sum, d) => sum + d.total_gb, 0);
         const usedDiskGb = data.disk.reduce((sum, d) => sum + d.used_gb, 0);
 
@@ -71,13 +66,13 @@ export async function pollAllServers(): Promise<void> {
           uptimeSeconds: data.uptime_seconds,
         });
 
-        console.log(`[poller] ${server.name}: OK`);
+        logger.info({ server: server.name, cpu: data.cpu.percent, memory: data.memory.percent, event: "metrics_collected" }, `${server.name}: 采集成功`);
       } catch (err) {
-        console.warn(`[poller] ${server.name}: ${err}`);
+        logger.warn({ server: server.name, err, event: "fetch_failed" }, `${server.name}: ${err}`);
         await createAlert("server_offline", `服务器离线: ${server.name}`, `无法连接到 ${server.metricsUrl}`, "warning", String(server.id));
       }
     }
   } catch (err) {
-    console.error("[poller] failed to fetch server list:", err);
+    logger.error({ err, event: "poller_failed" }, "获取服务器列表失败");
   }
 }

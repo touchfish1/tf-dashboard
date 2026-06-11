@@ -1,6 +1,8 @@
 import { db } from "../db";
 import { opencodeUsage, settings } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { logger } from "../lib/logger";
+import { createAlert } from "../lib/alerts";
 
 const DB_PATH = process.env.OPENCODE_DB_PATH || `${process.env.HOME}/.local/share/opencode/opencode.db`;
 
@@ -34,7 +36,7 @@ async function getApiConfig(): Promise<{ url: string; key: string } | null> {
 function getLocalSessions(): SessionRow[] {
   const { existsSync } = require("fs");
   if (!existsSync(DB_PATH)) {
-    console.warn(`[opencode] local DB not found: ${DB_PATH}`);
+    logger.warn({ dbPath: DB_PATH, event: "db_not_found" }, `数据库未找到: ${DB_PATH}`);
     return [];
   }
   const { Database } = require("bun:sqlite");
@@ -68,7 +70,7 @@ async function getApiSessions(api: { url: string; key: string }): Promise<Sessio
 
 function aggregateAndStore(rows: SessionRow[]): void {
   if (rows.length === 0) {
-    console.log("[opencode] no new sessions to aggregate");
+    logger.info({ event: "no_data" }, "OpenCode: 无新会话需要聚合");
     return;
   }
 
@@ -121,7 +123,7 @@ function aggregateAndStore(rows: SessionRow[]): void {
     }).onConflictDoNothing().catch(() => {});
   }
 
-  console.log(`[opencode] aggregated ${rows.length} sessions into ${buckets.size} buckets`);
+  logger.info({ sessionCount: rows.length, bucketCount: buckets.size, event: "aggregated" }, `聚合完成: ${rows.length} 会话 → ${buckets.size} 桶`);
 }
 
 export async function pollOpenCodeUsage(): Promise<void> {
@@ -130,15 +132,16 @@ export async function pollOpenCodeUsage(): Promise<void> {
     let rows: SessionRow[];
 
     if (api) {
-      console.log(`[opencode] fetching from API: ${api.url}`);
+      logger.info({ source: "api", url: api.url, event: "fetch_start" }, "OpenCode: fetching from API");
       rows = await getApiSessions(api);
     } else {
-      console.log("[opencode] reading from local SQLite");
+      logger.info({ source: "local", event: "fetch_start" }, "OpenCode: reading from local SQLite");
       rows = getLocalSessions();
     }
 
     aggregateAndStore(rows);
   } catch (err) {
-    console.error("[opencode] ETL failed:", err);
+    logger.error({ err, event: "etl_failed" }, "OpenCode ETL failed");
+    await createAlert("opencode_error", "OpenCode 采集失败", `错误: ${err}`, "warning").catch(() => {});
   }
 }

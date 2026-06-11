@@ -7,6 +7,7 @@ import {
   CreateServerBody, UpdateServerBody,
   parseParam, parseJson,
 } from "../lib/validation";
+import { writeAuditLog } from "../lib/audit";
 
 const router = new Hono();
 
@@ -29,6 +30,7 @@ router.post("/", async (c) => {
     metricsUrl: body.metricsUrl,
     labels: body.labels || [],
   }).returning();
+  writeAuditLog({ type: "operation", action: "server.create", resource: "servers", resourceId: String(created.id), detail: { name: body.name } }, c);
   return c.json(created, 201);
 });
 
@@ -37,12 +39,14 @@ router.patch("/:id", async (c) => {
   const body = await parseJson(c, UpdateServerBody);
   const [updated] = await db.update(servers).set(body).where(eq(servers.id, id)).returning();
   if (!updated) return c.json({ error: "not found" }, 404);
+  writeAuditLog({ type: "operation", action: "server.update", resource: "servers", resourceId: String(id), detail: { name: updated.name, changes: Object.keys(body) } }, c);
   return c.json(updated);
 });
 
 router.delete("/:id", async (c) => {
   const id = parseParam(c, "id", IdParam) as number;
   await db.delete(servers).where(eq(servers.id, id));
+  writeAuditLog({ type: "operation", action: "server.delete", resource: "servers", resourceId: String(id) }, c);
   return c.json({ ok: true });
 });
 

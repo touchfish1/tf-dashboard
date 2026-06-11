@@ -2,6 +2,7 @@ import { db } from "../db";
 import { deepseekBalance, settings } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { createAlert } from "../lib/alerts";
+import { logger } from "../lib/logger";
 
 const API_BASE = "https://api.deepseek.com";
 
@@ -25,7 +26,7 @@ async function getApiKey(): Promise<string> {
 export async function pollDeepSeekBalance(): Promise<void> {
   const apiKey = await getApiKey();
   if (!apiKey) {
-    console.warn("[deepseek] no API key configured, skipping");
+    logger.warn({ event: "no_api_key" }, "DeepSeek: 未配置API密钥，跳过");
     return;
   }
 
@@ -36,7 +37,7 @@ export async function pollDeepSeekBalance(): Promise<void> {
     });
 
     if (!resp.ok) {
-      console.warn(`[deepseek] HTTP ${resp.status}: ${resp.statusText}`);
+      logger.warn({ status: resp.status, event: "http_error" }, `DeepSeek: HTTP ${resp.status}`);
       return;
     }
 
@@ -50,7 +51,7 @@ export async function pollDeepSeekBalance(): Promise<void> {
         balanceToppedUp: info.topped_up_balance,
         currency: info.currency,
       });
-      console.log(`[deepseek] balance: ¥${info.total_balance}`);
+      logger.info({ balance: info.total_balance, currency: info.currency, event: "balance_updated" }, `DeepSeek余额: ¥${info.total_balance}`);
       const bal = parseFloat(info.total_balance);
       if (bal > 0 && bal < 5) {
         await createAlert("balance_low", "DeepSeek 余额不足", `当前余额 ¥${bal}，低于 ¥5`, "warning");
@@ -59,6 +60,6 @@ export async function pollDeepSeekBalance(): Promise<void> {
       }
     }
   } catch (err) {
-    console.warn("[deepseek] poll failed:", err);
+    logger.warn({ err, event: "poll_failed" }, "DeepSeek poll failed");
   }
 }

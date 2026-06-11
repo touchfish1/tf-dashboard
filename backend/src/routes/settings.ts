@@ -3,6 +3,7 @@ import { db } from "../db";
 import { settings } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { SettingValue, SettingKey, parseJson } from "../lib/validation";
+import { writeAuditLog } from "../lib/audit";
 
 const router = new Hono();
 
@@ -27,6 +28,7 @@ router.put("/:key", async (c) => {
   const body = await parseJson(c, SettingValue);
   await db.insert(settings).values({ key, value: body.value })
     .onConflictDoUpdate({ target: settings.key, set: { value: body.value, updatedAt: new Date() } });
+  writeAuditLog({ type: "operation", action: "settings.update", resource: "settings", resourceId: key, detail: { key } }, c);
   return c.json({ ok: true, key, value: body.value });
 });
 
