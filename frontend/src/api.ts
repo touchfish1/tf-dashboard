@@ -106,8 +106,8 @@ export const opencodeApi = {
   /** Daily-aggregated usage (server-side group by day) */
   usage: (days = 7) => get<OpenCodeDailyUsage[]>("/api/opencode/usage", { days: String(days) }),
   /** Per-record raw usage (for detail table) */
-  usageRaw: (days = 7, limit = 200) =>
-    get<OpenCodeUsage[]>("/api/opencode/usage", { days: String(days), raw: "true", limit: String(limit) }),
+  usageRaw: (days = 7, limit = 200, search = "") =>
+    get<OpenCodeUsage[]>("/api/opencode/usage", { days: String(days), raw: "true", limit: String(limit), ...(search ? { search } : {}) }),
   byModel: (days = 7) => get<OpenCodeByModel[]>("/api/opencode/by-model", { days: String(days) }),
   predict: (days = 30, predict = 7) =>
     get<OpenCodePrediction>("/api/opencode/predict", { days: String(days), predict: String(predict) }),
@@ -131,8 +131,8 @@ export const linksApi = {
 
 // ─── Audit Logs ────────────────────────────────────
 export const auditApi = {
-  list: (limit = 100, offset = 0) =>
-    get<AuditEntry[]>(`/api/audit?limit=${limit}&offset=${offset}`),
+  list: (limit = 50, offset = 0, days = 30, type = "") =>
+    get<AuditEntry[]>("/api/audit", { limit: String(limit), offset: String(offset), days: String(days), ...(type ? { type } : {}) }),
 };
 
 // ─── Alerts ────────────────────────────────────────

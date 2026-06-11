@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { opencodeApi, deepseekApi, serversApi, linksApi, dashboardConfigApi } from "../api";
+import { opencodeApi, deepseekApi, serversApi, linksApi, dashboardConfigApi, settingsApi } from "../api";
 import type { OpenCodeDailyUsage, OpenCodeSummary, OpenCodeByModel, OpenCodePrediction, DeepSeekBalance, Server, ServerSummary, NavLink, DashboardConfig } from "../types";
 import DashboardConfigPanel from "@/components/DashboardConfig";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -69,6 +69,8 @@ export default function DashboardPage() {
   const [cfg, setCfg] = useState<DashboardConfig | null>(null);
   const [prediction, setPrediction] = useState<OpenCodePrediction | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
+  const [monthlyBudget, setMonthlyBudget] = useState<number>(0);
+  const [monthlyCost, setMonthlyCost] = useState(0);
 
   // ── Clock tick ──
   useEffect(() => {
@@ -115,9 +117,18 @@ export default function DashboardPage() {
     opencodeApi.predict(30, 14).then(setPrediction).catch(() => {});
   }, []);
 
-  // ── Load dashboard config ──
+  // ── Load dashboard config + budget ──
   useEffect(() => {
     dashboardConfigApi.get().then(setCfg);
+    settingsApi.get("monthly_budget").then((r) => setMonthlyBudget(parseFloat(r.value || "0"))).catch(() => {});
+  }, []);
+
+  // ── Calculate monthly cost ──
+  useEffect(() => {
+    opencodeApi.usage(30).then((rows) => {
+      const total = rows.reduce((s, r) => s + parseFloat(r.cost), 0);
+      setMonthlyCost(total);
+    }).catch(() => {});
   }, []);
 
   const sectionVisible = (id: string): boolean => {
@@ -167,7 +178,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Skeleton: Stats row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}>
               <CardHeader className="pb-1">
@@ -347,6 +358,27 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
         </Card>
+        {monthlyBudget > 0 && (
+        <Card>
+          <CardHeader className="pb-1">
+            <CardDescription className="text-[11px] font-medium uppercase tracking-wider">
+              预算使用
+            </CardDescription>
+            <CardTitle className="text-base font-mono font-semibold text-foreground">
+              ${monthlyCost.toFixed(2)} / ${monthlyBudget.toFixed(0)}
+            </CardTitle>
+            <div className="mt-1.5 h-1.5 rounded-full bg-border overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${Math.min((monthlyCost / monthlyBudget) * 100, 100)}%`,
+                  background: monthlyCost / monthlyBudget > 0.9 ? "#ef4444" : monthlyCost / monthlyBudget > 0.7 ? "#f59e0b" : "#22c55e",
+                }}
+              />
+            </div>
+          </CardHeader>
+        </Card>
+        )}
       </div>
       </>}
 

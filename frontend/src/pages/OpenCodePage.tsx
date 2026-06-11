@@ -346,6 +346,7 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir | null>(null);
   const [page, setPage] = useState(0);
+  const [search, setSearch] = useState("");
 
   const PAGE_SIZE = 10;
 
@@ -354,11 +355,11 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
     setError(null);
     setPage(0);
     opencodeApi
-      .usageRaw(days, 200)
+      .usageRaw(days, 200, search)
       .then((res) => { setData(res); setLastUpdate(new Date()); })
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [days, retry]);
+  }, [days, retry, search]);
 
   // ── Derived data ─────────────────────────────
 
@@ -515,9 +516,16 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
               );
             }}
           >
-            导出 CSV
-          </Button>
-          <div className="inline-flex gap-1 bg-muted rounded-lg p-0.5">
+             导出 CSV
+           </Button>
+           <input
+             type="text"
+             value={search}
+             onChange={(e) => setSearch(e.target.value)}
+             placeholder="搜索模型/Agent..."
+             className="h-7 w-32 rounded-md border border-border bg-transparent px-2 text-xs font-mono placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+           />
+           <div className="inline-flex gap-1 bg-muted rounded-lg p-0.5">
           {([7, 30, 90] as TimeRange[]).map((d) => (
             <Button
               key={d}

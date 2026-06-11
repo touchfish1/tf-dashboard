@@ -70,6 +70,7 @@ export default function SettingsPage() {
   const [bgOpacity, setBgOpacity] = useState("30");
   const [bgSaving, setBgSaving] = useState(false);
   const [bgUploading, setBgUploading] = useState(false);
+  const [monthlyBudgetInput, setMonthlyBudgetInput] = useState("");
 
   useEffect(() => {
     loadServers();
@@ -77,6 +78,7 @@ export default function SettingsPage() {
     loadDsKey();
     loadOcConfig();
     loadBg();
+    settingsApi.get("monthly_budget").then((r) => setMonthlyBudgetInput(r.value || "")).catch(() => {});
   }, []);
 
   // ── DeepSeek ────────────────────────────────────
@@ -462,6 +464,32 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* 每月预算 */}
+          <div className="space-y-1.5">
+            <Label>每月预算 (USD)</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                type="number" min="0" step="10"
+                value={monthlyBudgetInput}
+                onChange={(e) => setMonthlyBudgetInput(e.target.value)}
+                placeholder="例如: 100"
+                className="w-32 font-mono"
+              />
+              <Button
+                onClick={async () => {
+                  trackAction("设置", "保存预算");
+                  await settingsApi.set("monthly_budget", monthlyBudgetInput);
+                  toast("success", "预算已保存");
+                }}
+                size="sm"
+              >
+                保存
+              </Button>
             </div>
           </div>
         </CardContent>

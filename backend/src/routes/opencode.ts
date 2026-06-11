@@ -22,9 +22,14 @@ router.get("/usage", async (c) => {
 
   if (q.raw === "true") {
     const limit = q.limit;
+    const search = c.req.query("search") || "";
     const rows = await db.select()
       .from(opencodeUsage)
-      .where(sql`bucket_start >= NOW() - INTERVAL '1 day' * ${days}`)
+      .where(
+        search
+          ? sql`bucket_start >= NOW() - INTERVAL '1 day' * ${days} AND (model ILIKE ${`%${search}%`} OR agent ILIKE ${`%${search}%`})`
+          : sql`bucket_start >= NOW() - INTERVAL '1 day' * ${days}`
+      )
       .orderBy(sql`bucket_start DESC`)
       .limit(limit);
     return c.json(rows);

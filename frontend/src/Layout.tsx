@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Server as ServerType, Alert } from "./types";
 import { serversApi, alertsApi } from "./api";
+import ConnectionStatus from "@/components/ConnectionStatus";
 import { trackPageView, trackPerformance, trackAction, startSessionTracking, stopSessionTracking, initViewportTracking, initClickTracking, initFormTracking, initScrollTracking, initVisibilityTracking, initOutboundTracking } from "./lib/tracking";
 
 const NAV = [
@@ -97,6 +98,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-background">
+      <ConnectionStatus />
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
         <div className="flex items-center h-12 px-4 sm:px-6 max-w-[1400px] mx-auto">
           {/* Scrollable nav area + logo */}
