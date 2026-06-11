@@ -3,6 +3,7 @@ import { db } from "../db";
 import { opencodeUsage } from "../db/schema";
 import { sql } from "drizzle-orm";
 import { OpenCodeUsageQuery, parseQuery } from "../lib/validation";
+import { createAlert } from "../lib/alerts";
 
 const router = new Hono();
 
@@ -143,6 +144,50 @@ router.get("/predict", async (c) => {
         cost: parseFloat((costReg.next(7) * 7).toFixed(2)),
       },
     },
+  });
+});
+
+// ─── Anomaly detection ─────────────────────────────────────────
+router.get("/anomaly", async (c) => {
+  // Today's cost
+  const [todayRow] = await db.select({
+    cost: sql<string>`COALESCE(SUM(cost::numeric),0)`,
+  })
+    .from(opencodeUsage)
+    .where(sql`bucket_start >= CURRENT_DATE AND bucket_start < CURRENT_DATE + INTERVAL '1 day'`);
+
+  // 7-day rolling average (excluding today)
+  const [avgRow] = await db.select({
+    avgCost: sql<string>`COALESCE(AVG(daily.cost),0)`,
+  })
+    .from(db.select({
+      cost: sql<string>`SUM(cost::numeric)`,
+    })
+      .from(opencodeUsage)
+      .where(sql`bucket_start >= CURRENT_DATE - INTERVAL '8 days' AND bucket_start < CURRENT_DATE`)
+      .groupBy(sql`DATE(bucket_start)`)
+      .as("daily"));
+
+  const todayCost = parseFloat(todayRow?.cost || "0");
+  const avgCost = parseFloat(avgRow?.avgCost || "0");
+  const ratio = avgCost > 0 ? todayCost / avgCost : 0;
+
+  // Create alert if anomaly detected
+  if (ratio > 2 && avgCost > 0.01) {
+    await createAlert(
+      "system",
+      "费用异常增长",
+      `今日费用 $${todayCost.toFixed(2)}，是 7 日均值 $${avgCost.toFixed(2)} 的 ${ratio.toFixed(1)} 倍`,
+      ratio > 3 ? "critical" : "warning",
+      "cost_anomaly"
+    );
+  }
+
+  return c.json({
+    todayCost: parseFloat(todayCost.toFixed(4)),
+    avgCost: parseFloat(avgCost.toFixed(4)),
+    ratio: parseFloat(ratio.toFixed(2)),
+    status: ratio > 2 ? "anomaly" : ratio > 1.5 ? "elevated" : "normal",
   });
 });
 
