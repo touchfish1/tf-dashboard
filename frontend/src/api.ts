@@ -1,6 +1,7 @@
 import type {
   Server, ServerMetrics, ServerSummary,
   OpenCodeUsage, OpenCodeDailyUsage, OpenCodeSummary, OpenCodeByModel,
+  OpenCodePrediction,
   DeepSeekBalance, NavLink, Alert, DashboardConfig, DashboardSection,
 } from "./types";
 
@@ -74,6 +75,8 @@ export const opencodeApi = {
   usageRaw: (days = 7, limit = 200) =>
     get<OpenCodeUsage[]>("/api/opencode/usage", { days: String(days), raw: "true", limit: String(limit) }),
   byModel: (days = 7) => get<OpenCodeByModel[]>("/api/opencode/by-model", { days: String(days) }),
+  predict: (days = 30, predict = 7) =>
+    get<OpenCodePrediction>("/api/opencode/predict", { days: String(days), predict: String(predict) }),
 };
 
 // ─── DeepSeek ────────────────────────────────────
@@ -104,6 +107,7 @@ const DEFAULT_SECTIONS: DashboardSection[] = [
   { id: "links", title: "常用链接", visible: true },
   { id: "stats", title: "统计概览", visible: true },
   { id: "charts", title: "用量图表", visible: true },
+  { id: "prediction", title: "用量预测", visible: true },
   { id: "servers", title: "服务器状态", visible: true },
 ];
 

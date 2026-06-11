@@ -111,6 +111,30 @@ export interface Alert {
   createdAt: string;
 }
 
+export interface PredictionPoint {
+  date: string;
+  tokensInput: number;
+  tokensOutput: number;
+  cost: number;
+}
+
+export interface PredictionTrend {
+  inputSlope: number;
+  outputSlope: number;
+  costSlope: number;
+  weeklyProjected: {
+    tokensInput: number;
+    tokensOutput: number;
+    cost: number;
+  };
+}
+
+export interface OpenCodePrediction {
+  actual: PredictionPoint[];
+  predicted: PredictionPoint[];
+  trend: PredictionTrend;
+}
+
 export interface DeepSeekBalance {
   id: number;
   recordedAt: string;

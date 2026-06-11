@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { opencodeApi, deepseekApi, serversApi, linksApi, dashboardConfigApi } from "../api";
-import type { OpenCodeDailyUsage, OpenCodeSummary, OpenCodeByModel, DeepSeekBalance, Server, ServerSummary, NavLink, DashboardConfig } from "../types";
+import type { OpenCodeDailyUsage, OpenCodeSummary, OpenCodeByModel, OpenCodePrediction, DeepSeekBalance, Server, ServerSummary, NavLink, DashboardConfig } from "../types";
 import DashboardConfigPanel from "@/components/DashboardConfig";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +66,7 @@ export default function DashboardPage() {
   const [ss, setSs] = useState<Record<number, ServerSummary>>({});
   const [links, setLinks] = useState<NavLink[]>([]);
   const [cfg, setCfg] = useState<DashboardConfig | null>(null);
+  const [prediction, setPrediction] = useState<OpenCodePrediction | null>(null);
 
   // ── Clock tick ──
   useEffect(() => {
@@ -92,6 +93,11 @@ export default function DashboardPage() {
     })();
     return () => { cancel = true; };
   }, [days]);
+
+  // ── Prediction fetch ──
+  useEffect(() => {
+    opencodeApi.predict(30, 14).then(setPrediction).catch(() => {});
+  }, []);
 
   // ── Load dashboard config ──
   useEffect(() => {
@@ -427,6 +433,70 @@ export default function DashboardPage() {
                 );
               })}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ════════════════════════════════════════════
+           6. Usage Prediction
+           ════════════════════════════════════════════ */}
+      {sectionVisible("prediction") && prediction && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xs font-medium text-muted-foreground">用量预测</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+              <div className="p-3 rounded-lg bg-muted/50">
+                <span className="text-[11px] text-muted-foreground">预测下周总费用</span>
+                <div className="text-lg font-mono font-semibold text-foreground mt-1">
+                  ${prediction.trend.weeklyProjected.cost.toFixed(2)}
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <span className="text-[11px] text-muted-foreground">预测下周输入 Tokens</span>
+                <div className="text-lg font-mono font-semibold text-foreground mt-1">
+                  {fmt(prediction.trend.weeklyProjected.tokensInput)}
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <span className="text-[11px] text-muted-foreground">预测下周输出 Tokens</span>
+                <div className="text-lg font-mono font-semibold text-foreground mt-1">
+                  {fmt(prediction.trend.weeklyProjected.tokensOutput)}
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <span className="text-[11px] text-muted-foreground">日增长趋势</span>
+                <div className="text-lg font-mono font-semibold text-foreground mt-1">
+                  {prediction.trend.costSlope > 0 ? "+" : ""}${prediction.trend.costSlope.toFixed(2)}/天
+                </div>
+              </div>
+            </div>
+
+            {prediction.actual.length > 0 && (
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={[...prediction.actual, ...prediction.predicted].map(p => ({
+                  ...p,
+                  d: p.date.slice(5),
+                  isPredicted: prediction.predicted.includes(p),
+                }))}>
+                  <defs>
+                    <linearGradient id="predGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="d" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis tickFormatter={fmt} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} tickLine={false} axisLine={false} width={50} />
+                  <Tooltip
+                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                    formatter={(value: any) => [fmt(value as number), "Tokens"]}
+                  />
+                  <Area type="monotone" dataKey="tokensInput" stroke="#a78bfa" strokeWidth={1.5} fill="url(#predGrad)" strokeDasharray="4 3" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       )}
