@@ -10,6 +10,7 @@ const OpenCodePage = lazy(() => import("./pages/OpenCodePage"));
 const DeepSeekPage = lazy(() => import("./pages/DeepSeekPage"));
 const ServerPage = lazy(() => import("./pages/ServerPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 
 function PageFallback() {
   return (
@@ -98,6 +99,16 @@ export default function App() {
                   <ErrorBoundary>
                     <Suspense fallback={<PageFallback />}>
                       <SettingsPage />
+                    </Suspense>
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/audit"
+                element={
+                  <ErrorBoundary>
+                    <Suspense fallback={<PageFallback />}>
+                      <AuditLogPage />
                     </Suspense>
                   </ErrorBoundary>
                 }

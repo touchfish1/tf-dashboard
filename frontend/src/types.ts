@@ -135,6 +135,19 @@ export interface OpenCodePrediction {
   trend: PredictionTrend;
 }
 
+export interface AuditEntry {
+  id: number;
+  timestamp: string;
+  type: string;
+  action: string;
+  actor: string;
+  resource: string;
+  resourceId: string | null;
+  detail: string | null;
+  ip: string;
+  userAgent: string;
+}
+
 export interface DeepSeekBalance {
   id: number;
   recordedAt: string;

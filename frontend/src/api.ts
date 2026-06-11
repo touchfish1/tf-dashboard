@@ -3,20 +3,34 @@ import type {
   OpenCodeUsage, OpenCodeDailyUsage, OpenCodeSummary, OpenCodeByModel,
   OpenCodePrediction,
   DeepSeekBalance, NavLink, Alert, DashboardConfig, DashboardSection,
+  AuditEntry,
 } from "./types";
+import { trackApiCall } from "./lib/tracking";
 
 const BASE = "/api";
+
+async function trackedFetch(method: string, path: string, options?: RequestInit): Promise<Response> {
+  const start = performance.now();
+  try {
+    const res = await fetch(path, options);
+    trackApiCall(path, Math.round(performance.now() - start), res.status, method);
+    return res;
+  } catch (err) {
+    trackApiCall(path, Math.round(performance.now() - start), 0, method);
+    throw err;
+  }
+}
 
 async function get<T>(path: string, params?: Record<string, string>): Promise<T> {
   const url = new URL(path, window.location.origin);
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString());
+  const res = await trackedFetch("GET", url.toString());
   if (!res.ok) throw new Error(`GET ${path}: ${res.status}`);
   return res.json();
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(BASE + path, {
+  const res = await trackedFetch("POST", BASE + path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -26,7 +40,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 }
 
 async function put<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(BASE + path, {
+  const res = await trackedFetch("PUT", BASE + path, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -36,13 +50,12 @@ async function put<T>(path: string, body: unknown): Promise<T> {
 }
 
 async function del(path: string): Promise<void> {
-  const res = await fetch(BASE + path, { method: "DELETE" });
+  const res = await trackedFetch("DELETE", BASE + path, { method: "DELETE" });
   if (!res.ok) throw new Error(`DELETE ${path}: ${res.status}`);
 }
 
-// ─── Helpers for PUT / PATCH ──────────────────────
 async function patchReq<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(BASE + path, {
+  const res = await trackedFetch("PATCH", BASE + path, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -93,6 +106,12 @@ export const linksApi = {
   update: (id: number, b: { title?: string; url?: string; category?: string }) =>
     put<NavLink>(`/links/${id}`, b),
   remove: (id: number) => del(`/links/${id}`),
+};
+
+// ─── Audit Logs ────────────────────────────────────
+export const auditApi = {
+  list: (limit = 100, offset = 0) =>
+    get<AuditEntry[]>(`/api/audit?limit=${limit}&offset=${offset}`),
 };
 
 // ─── Alerts ────────────────────────────────────────
