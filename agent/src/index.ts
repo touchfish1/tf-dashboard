@@ -52,6 +52,12 @@ app.get("/api/opencode/sessions", async (c) => {
   const days = parseInt(c.req.query("days") || "7", 10);
   const limit = parseInt(c.req.query("limit") || "500", 10);
 
+  // Check if `opencode` CLI is available (not present in Docker)
+  const which = Bun.spawnSync(["which", "opencode"]);
+  if (!which.success) {
+    return c.json({ error: "opencode CLI not available in this environment" }, 501);
+  }
+
   try {
     const proc = Bun.spawnSync([
       "opencode", "db",

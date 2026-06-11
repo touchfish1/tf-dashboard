@@ -1,0 +1,8 @@
+node_modules/
+.git/
+.omo/
+*.db
+.env
+docs/
+skills/
+.agents/

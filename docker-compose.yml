@@ -1,0 +1,29 @@
+services:
+  # Metrics Agent（部署在被监控的服务器上）
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    ports:
+      - "9100:9100"
+    environment:
+      - METRICS_PORT=9100
+      - METRICS_HOST=0.0.0.0
+    restart: unless-stopped
+
+  # Dashboard Server（后端 API + 前端静态页面）
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - "3000:3000"
+    environment:
+      - API_PORT=3000
+      - API_HOST=0.0.0.0
+      - DATABASE_URL=postgresql://zhangyuan:zhangyuan@100.125.148.23:5432/tf_dashboard
+      - DEEPSEEK_API_KEY=
+      - POLL_SERVERS_INTERVAL=30
+      - POLL_OPENCODE_INTERVAL=60
+      - POLL_DEEPSEEK_INTERVAL=300
+    restart: unless-stopped
