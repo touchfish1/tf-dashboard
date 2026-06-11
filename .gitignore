@@ -3,7 +3,8 @@ dist/
 .env
 *.db
 uploads/
-.github/
+.github/*
+!.github/workflows/
 .omo/
 backend/mobile-dist/
 backend/mobile-web/
