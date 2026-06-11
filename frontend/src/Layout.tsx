@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Server as ServerType, Alert } from "./types";
 import { serversApi, alertsApi } from "./api";
-import { trackPageView, trackPerformance, trackAction } from "./lib/tracking";
+import { trackPageView, trackPerformance, trackAction, startSessionTracking, stopSessionTracking, initViewportTracking } from "./lib/tracking";
 
 const NAV = [
   { to: "/dashboard", label: "总览", icon: ChartPieSlice },
@@ -45,6 +45,13 @@ export default function Layout() {
   useEffect(() => {
     trackPageView(loc.pathname);
   }, [loc.pathname]);
+
+  // Session + viewport tracking
+  useEffect(() => {
+    startSessionTracking();
+    initViewportTracking();
+    return () => stopSessionTracking();
+  }, []);
 
   // Track page load performance
   useEffect(() => {
