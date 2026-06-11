@@ -14,6 +14,7 @@ import opencodeRoute from "./routes/opencode";
 import deepseekRoute from "./routes/deepseek";
 import settingsRoute from "./routes/settings";
 import linksRoute from "./routes/links";
+import uploadRoute from "./routes/upload";
 import { pollAllServers } from "./pollers/servers";
 import { pollOpenCodeUsage } from "./pollers/opencode";
 import { pollDeepSeekBalance } from "./pollers/deepseek";
@@ -48,6 +49,7 @@ app.route("/api/opencode", opencodeRoute);
 app.route("/api/deepseek", deepseekRoute);
 app.route("/api/settings", settingsRoute);
 app.route("/api/links", linksRoute);
+app.route("/api", uploadRoute);
 
 // Serve built frontend in production
 app.use("/*", serveStatic({ root: "../frontend/dist" }));

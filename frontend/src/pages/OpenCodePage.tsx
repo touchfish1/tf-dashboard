@@ -38,11 +38,13 @@ function formatDateLabel(dateStr: string): string {
 }
 
 function formatDateTime(isoStr: string): string {
-  return new Date(isoStr).toLocaleDateString("en-US", {
+  const d = new Date(isoStr);
+  return d.toLocaleString("zh-CN", {
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
 }
 

@@ -51,6 +51,7 @@ export default function SettingsPage() {
   const [bgUrlSaved, setBgUrlSaved] = useState(false);
   const [bgOpacity, setBgOpacity] = useState("30");
   const [bgSaving, setBgSaving] = useState(false);
+  const [bgUploading, setBgUploading] = useState(false);
 
   useEffect(() => {
     loadServers();
@@ -136,6 +137,24 @@ export default function SettingsPage() {
       setBgUrlSaved(true);
     } catch { alert("保存失败"); }
     finally { setBgSaving(false); }
+  };
+
+  const handleUploadBg = async (file: File) => {
+    if (!file.type.startsWith("image/")) { alert("只支持图片文件"); return; }
+    if (file.size > 5 * 1024 * 1024) { alert("文件不能超过 5MB"); return; }
+    setBgUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      const data = await res.json();
+      if (data.url) {
+        setBgUrl(data.url);
+        setBgUrlSaved(true);
+        await settingsApi.set("bg_image_url", data.url);
+      }
+    } catch { alert("上传失败"); }
+    finally { setBgUploading(false); }
   };
 
   const loadServers = async () => {
@@ -387,26 +406,37 @@ export default function SettingsPage() {
 
           {/* 背景图片设置 */}
           <div>
-            <label className="block text-xs text-zinc-500 mb-1.5">背景图片 URL</label>
-            <div className="flex items-center gap-3">
-              <input type="text" value={bgUrl} onChange={(e) => setBgUrl(e.target.value)}
-                placeholder="https://example.com/wallpaper.jpg"
-                className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors font-mono" />
-              {bgUrlSaved && <span className="text-emerald-400 text-xs shrink-0">✓</span>}
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1.5">背景透明度 ({bgOpacity}%)</label>
-            <div className="flex items-center gap-3">
-              <input type="range" min="5" max="80" value={bgOpacity}
-                onChange={(e) => setBgOpacity(e.target.value)}
-                className="flex-1 accent-pink-500 h-1.5 rounded-full cursor-pointer"
-                style={{ accentColor: "var(--color-accent)" }} />
-              <button onClick={handleSaveBg}
-                disabled={bgSaving}
-                className="px-4 py-2 text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors disabled:opacity-50 shrink-0">
-                {bgSaving ? "保存中..." : "保存"}
-              </button>
+            <label className="block text-xs text-zinc-500 mb-1.5">背景图片</label>
+            <div className="flex items-start gap-4">
+              <label className="flex flex-col items-center justify-center w-32 h-20 rounded-lg border-2 border-dashed cursor-pointer transition-colors"
+                style={{ borderColor: "var(--color-border)", background: bgUrl ? `url(${bgUrl}) center/cover` : "var(--color-surface-raised)" }}>
+                {!bgUrl && (
+                  <div className="text-center">
+                    <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                      {bgUploading ? "上传中..." : "点击上传"}
+                    </span>
+                  </div>
+                )}
+                <input type="file" accept="image/*" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadBg(f); }} />
+              </label>
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>透明度 {bgOpacity}%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="range" min="5" max="80" value={bgOpacity}
+                    onChange={(e) => setBgOpacity(e.target.value)}
+                    className="flex-1 h-1.5 rounded-full cursor-pointer"
+                    style={{ accentColor: "var(--color-accent)" }} />
+                  <button onClick={handleSaveBg}
+                    disabled={bgSaving}
+                    className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-50 shrink-0"
+                    style={{ color: "var(--color-text-primary)", background: "var(--color-accent)" }}>
+                    {bgSaving ? "保存中..." : "保存"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
