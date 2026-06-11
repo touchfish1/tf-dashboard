@@ -10,5 +10,10 @@
     "backend:dev": "bun run --hot backend/src/index.ts",
     "frontend:dev": "cd frontend && bun run dev",
     "frontend:build": "cd frontend && bun run build"
+  },
+  "dependencies": {
+    "expo-linear-gradient": "^56.0.4",
+    "react-native-gifted-charts": "^1.4.77",
+    "react-native-svg": "^15.15.5"
   }
 }

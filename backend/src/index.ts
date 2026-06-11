@@ -76,9 +76,6 @@ app.route("/api/audit", auditRoute);
 // Frontend log ingestion (POST /api/logs)
 app.route("/api", logsRoute);
 
-app.use("/m/*", serveStatic({ root: "./backend/mobile-dist" }));
-app.get("/m", (c) => c.redirect("/m/index.html"));
-
 // Serve built frontend in production
 app.use("/*", serveStatic({ root: "../frontend/dist" }));
 
