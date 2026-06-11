@@ -4,8 +4,8 @@ import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis
 import { opencodeApi, deepseekApi, serversApi, linksApi } from "../api";
 import type { OpenCodeUsage, OpenCodeSummary, OpenCodeByModel, DeepSeekBalance, Server, ServerSummary, NavLink } from "../types";
 
-const PIE = ["#10b981", "#06b6d4", "#8b5cf6", "#f59e0b", "#ef4444", "#3b82f6"];
-const LINK_COLORS = ["#10b981", "#06b6d4", "#8b5cf6", "#f59e0b", "#ef4444", "#3b82f6", "#ec4899", "#14b8a6"];
+const PIE = ["#ec4899", "#06b6d4", "#a78bfa", "#f472b6", "#fbbf24", "#34d399"];
+const LINK_COLORS = ["#ec4899", "#06b6d4", "#a78bfa", "#f472b6", "#fbbf24", "#34d399", "#60a5fa", "#f97316"];
 const DAYS = [
   { label: "24h", value: 1 },
   { label: "7d", value: 7 },
@@ -23,13 +23,13 @@ function dd(iso: string) { const d = new Date(iso); return d.toLocaleDateString(
 
 function getGreeting(): string {
   const h = new Date().getHours();
-  if (h >= 6 && h < 12) return "早上好";
-  if (h >= 12 && h < 18) return "下午好";
-  return "晚上好";
+  if (h >= 5 && h < 12) return "おはよう";
+  if (h >= 12 && h < 18) return "こんにちは";
+  return "こんばんは";
 }
 
 function getTimeStr(): string {
-  return new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+  return new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
 }
 
 export default function DashboardPage() {
@@ -97,7 +97,7 @@ export default function DashboardPage() {
         <div className="flex flex-col items-center gap-3">
           <div className="w-5 h-5 rounded-full border-2 animate-spin"
             style={{ borderColor: "var(--color-border)", borderTopColor: "var(--color-accent)" }} />
-          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>加载中...</span>
+          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>Loading...</span>
         </div>
       </div>
     );
@@ -210,11 +210,11 @@ export default function DashboardPage() {
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="ig" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.25} />
-                    <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#ec4899" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#ec4899" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="og" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.2} />
+                    <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.25} />
                     <stop offset="100%" stopColor="#06b6d4" stopOpacity={0} />
                   </linearGradient>
                 </defs>
@@ -222,7 +222,7 @@ export default function DashboardPage() {
                 <XAxis dataKey="d" tickFormatter={dd} tick={{ fill: "#5c5c66", fontSize: 11 }} tickLine={false} axisLine={false} />
                 <YAxis tickFormatter={fmt} tick={{ fill: "#5c5c66", fontSize: 11 }} tickLine={false} axisLine={false} width={50} />
                 <Tooltip contentStyle={{ background: "#121214", border: "1px solid #1e1e22", borderRadius: 8, fontSize: 12 }} />
-                <Area type="monotone" dataKey="i" stroke="#10b981" strokeWidth={1.5} fill="url(#ig)" />
+                <Area type="monotone" dataKey="i" stroke="#ec4899" strokeWidth={1.5} fill="url(#ig)" />
                 <Area type="monotone" dataKey="o" stroke="#06b6d4" strokeWidth={1.5} fill="url(#og)" />
               </AreaChart>
             </ResponsiveContainer>
