@@ -1,9 +1,27 @@
+import path from "path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [tailwindcss(), react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "recharts-vendor": ["recharts"],
+          "phosphor-icons": ["@phosphor-icons/react"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 400,
+  },
   server: {
     host: "0.0.0.0",
     port: 5173,
