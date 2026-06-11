@@ -143,6 +143,20 @@ async function setup() {
         ON server_metrics(server_id, collected_at DESC);
     `;
 
+    await client`
+      CREATE TABLE IF NOT EXISTS alerts (
+        id SERIAL PRIMARY KEY,
+        type TEXT NOT NULL,
+        severity TEXT DEFAULT 'warning',
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        ref_id TEXT,
+        acknowledged BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+    console.log("   ✅ alerts");
+
     await client.end();
     console.log("\n🎉 Database setup complete!");
   } catch (err) {
