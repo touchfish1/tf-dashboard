@@ -712,8 +712,8 @@ export default function ServerPage() {
           </Card>
         </div>
 
-        {/* ── CPU Load & Network I/O ──────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        {/* ── CPU Load / Network I/O / Disk ────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           {/* CPU Load Chart */}
           <Card>
             <CardHeader>
@@ -804,6 +804,34 @@ export default function ServerPage() {
                   />
                   <Area type="monotone" dataKey="networkRxBytes" name="RX" stroke="#3b82f6" strokeWidth={1.5} fill="url(#rxGrad)" dot={false} activeDot={{ r: 3, fill: "#3b82f6" }} />
                   <Area type="monotone" dataKey="networkTxBytes" name="TX" stroke="#8b5cf6" strokeWidth={1.5} fill="url(#txGrad)" dot={false} activeDot={{ r: 3, fill: "#8b5cf6" }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Disk Usage Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Disk Usage</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="diskGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="collectedAt" tickFormatter={(v: string) => formatChartTime(v, timeRange)}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={{ stroke: "var(--border)" }} tickLine={false} minTickGap={40} />
+                  <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={{ stroke: "var(--border)" }} tickLine={false} width={50}
+                    tickFormatter={(v: number) => v.toFixed(0) + "GB"} />
+                  <Tooltip labelFormatter={(label) => formatTooltipTime(label as string)}
+                    formatter={(value) => [`${Number(value).toFixed(1)} GB`, "磁盘使用"]}
+                    contentStyle={CHART_TOOLTIP_STYLES.content} labelStyle={CHART_TOOLTIP_STYLES.label} itemStyle={CHART_TOOLTIP_STYLES.item} />
+                  <Area type="monotone" dataKey="diskUsedGb" stroke="#f59e0b" strokeWidth={2} fill="url(#diskGrad)" dot={false} activeDot={{ r: 4, fill: "#f59e0b" }} />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>

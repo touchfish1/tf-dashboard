@@ -783,9 +783,9 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <PollingIntervalField label="OpenCode" value="60s" />
-            <PollingIntervalField label="Server" value="30s" />
-            <PollingIntervalField label="DeepSeek" value="300s" />
+            <IntervalField label="后台刷新(秒)" settingKey="interval_refetch" placeholder="30" />
+            <IntervalField label="OpenCode 采集(秒)" settingKey="interval_opencode" placeholder="60" />
+            <IntervalField label="DeepSeek 轮询(秒)" settingKey="interval_deepseek" placeholder="300" />
           </div>
         </CardContent>
       </Card>
@@ -847,17 +847,23 @@ function DataSourceItem({
   );
 }
 
-function PollingIntervalField({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function IntervalField({ label, settingKey, placeholder }: { label: string; settingKey: string; placeholder: string }) {
+  const [val, setVal] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { settingsApi.get(settingKey).then((r) => setVal(r.value || "")).catch(() => {}); }, []);
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
-      <Input value={value} readOnly className="select-none cursor-default" />
+      <div className="flex items-center gap-2">
+        <Input value={val} onChange={(e) => { setVal(e.target.value); setSaved(false); }} placeholder={placeholder} className="w-24 font-mono" />
+        <Button size="sm" disabled={saving || !val} onClick={async () => {
+          setSaving(true);
+          await settingsApi.set(settingKey, val);
+          setSaved(true);
+          setSaving(false);
+        }}>{saving ? "..." : saved ? "已保存" : "保存"}</Button>
+      </div>
     </div>
   );
 }
