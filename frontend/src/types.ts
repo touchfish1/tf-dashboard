@@ -159,3 +159,59 @@ export interface DeepSeekBalance {
   balanceToppedUp: string;
   currency: string;
 }
+
+// ─── Alert Rules ────────────────────────────────
+
+export interface AlertRule {
+  id: number;
+  name: string;
+  enabled: boolean;
+  conditions: RuleCondition[];
+  matchMode: 'all' | 'any';
+  notificationChannels: string[];
+  cooldownMinutes: number;
+  severity: 'info' | 'warning' | 'critical';
+  createdBy: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RuleCondition {
+  field: 'deepseek_balance' | 'server_offline' | 'opencode_etl_error' | 'opencode_cost_anomaly' | 'monthly_budget_pct' | 'cpu_percent' | 'memory_percent';
+  operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq' | 'true';
+  value?: number;
+  unit?: string;
+}
+
+export interface NotificationChannel {
+  type: 'slack' | 'feishu' | 'dingtalk' | 'wecom' | 'webhook_generic';
+  url: string;
+  name: string;
+}
+
+// ─── Reports ──────────────────────────────────────
+
+export interface ScheduledReport {
+  id: number;
+  type: 'daily' | 'weekly';
+  status: 'pending' | 'sent' | 'failed';
+  periodStart: string;
+  periodEnd: string;
+  sentTo: string[] | null;
+  error: string | null;
+  createdAt: string;
+}
+
+// ─── Auth ────────────────────────────────────────
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  displayName: string;
+  role: "admin" | "viewer";
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  user: AuthUser;
+}

@@ -4,8 +4,11 @@ import type {
   OpenCodePrediction,
   DeepSeekBalance, NavLink, Alert, DashboardConfig, DashboardSection,
   AuditEntry,
+  AlertRule,
+  ScheduledReport,
 } from "./types";
 import { trackApiCall } from "./lib/tracking";
+import { getAccessToken, setAccessToken } from "./auth";
 
 const BASE = "/api";
 const TIMEOUT_MS = 30000;
@@ -46,9 +49,14 @@ async function trackedFetch(method: string, path: string, options?: RequestInit)
 
 async function apiFetch<T>(method: string, path: string, body?: unknown): Promise<T> {
   const url = path.startsWith("http") ? path : (path.startsWith("/api") ? path : BASE + path);
+  const token = getAccessToken();
+  const headers: Record<string, string> = body ? { "Content-Type": "application/json" } : {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
   const options: RequestInit = {
     method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   };
 
@@ -60,11 +68,33 @@ async function apiFetch<T>(method: string, path: string, body?: unknown): Promis
       return res.json();
     }
 
+    // On 401 with a token: session expired, force re-login
+    if (res.status === 401 && token) {
+      setAccessToken(null);
+      if (!path.includes("/api/auth/me") && !window.location.pathname.startsWith("/login")) {
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      }
+      throw new Error(`${method} ${path}: Unauthorized`);
+    }
+
     const errMsg = await parseErrorBody(res);
 
     // Retry on retryable status or network errors (handled by trackedFetch catch)
     if (attempt < MAX_RETRIES && RETRYABLE_STATUS.includes(res.status)) {
-      const delay = Math.min(1000 * Math.pow(2, attempt), 4000);
+      // Honor Retry-After header for 429 (rate limited)
+      let delay: number;
+      if (res.status === 429) {
+        const retryAfter = res.headers.get("Retry-After");
+        if (retryAfter) {
+          delay = parseInt(retryAfter, 10) * 1000;
+        } else {
+          // Exponential backoff starting at 2s for 429
+          delay = Math.min(2000 * Math.pow(2, attempt), 8000);
+        }
+      } else {
+        // Default exponential backoff for other retryable statuses
+        delay = Math.min(1000 * Math.pow(2, attempt), 4000);
+      }
       await new Promise((r) => setTimeout(r, delay));
       continue;
     }
@@ -144,6 +174,15 @@ export const alertsApi = {
   ackAll: (type?: string) => post("/alerts/ack-all", type ? { type } : {}),
 };
 
+// ─── Alert Rules ───────────────────────────────────
+export const alertRulesApi = {
+  list: () => get<AlertRule[]>("/api/alert-rules"),
+  get: (id: number) => get<AlertRule>(`/api/alert-rules/${id}`),
+  create: (body: Partial<AlertRule>) => post<AlertRule>("/alert-rules", body),
+  update: (id: number, body: Partial<AlertRule>) => put<AlertRule>(`/alert-rules/${id}`, body),
+  remove: (id: number) => del(`/alert-rules/${id}`),
+};
+
 const DEFAULT_SECTIONS: DashboardSection[] = [
   { id: "links", title: "常用链接", visible: true },
   { id: "stats", title: "统计概览", visible: true },
@@ -167,6 +206,11 @@ export const dashboardConfigApi = {
   async save(config: DashboardConfig): Promise<void> {
     await settingsApi.set("dashboard_config", JSON.stringify(config));
   },
+};
+
+// ─── Reports ───────────────────────────────────────
+export const reportsApi = {
+  list: (limit = 20) => get<ScheduledReport[]>('/api/reports', { limit: String(limit) }),
 };
 
 // ─── Settings ─────────────────────────────────────
