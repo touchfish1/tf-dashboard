@@ -15,6 +15,33 @@ const TIMEOUT_MS = 30000;
 const MAX_RETRIES = 2;
 const RETRYABLE_STATUS = [408, 429, 502, 503, 504];
 
+// ─── In-flight request deduplication ────────────
+const inflightMap = new Map<string, Promise<unknown>>();
+
+function dedupKey(method: string, url: string, body?: unknown): string {
+  // For mutation requests include body in key; for GET the URL+method is sufficient
+  if (body && method !== "GET") {
+    return `${method}:${url}:${JSON.stringify(body)}`;
+  }
+  return `${method}:${url}`;
+}
+
+async function dedupFetch<T>(method: string, url: string, body?: unknown): Promise<T> {
+  const key = dedupKey(method, url, body);
+  const existing = inflightMap.get(key);
+  if (existing) {
+    return existing as Promise<T>;
+  }
+  const promise = apiFetchInner<T>(method, url, body).finally(() => {
+    // Only remove if this exact promise is still in the map
+    if (inflightMap.get(key) === promise) {
+      inflightMap.delete(key);
+    }
+  });
+  inflightMap.set(key, promise);
+  return promise;
+}
+
 async function fetchWithTimeout(path: string, options?: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -47,7 +74,7 @@ async function trackedFetch(method: string, path: string, options?: RequestInit)
   }
 }
 
-async function apiFetch<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function apiFetchInner<T>(method: string, path: string, body?: unknown): Promise<T> {
   const url = path.startsWith("http") ? path : (path.startsWith("/api") ? path : BASE + path);
   const token = getAccessToken();
   const headers: Record<string, string> = body ? { "Content-Type": "application/json" } : {};
@@ -108,12 +135,12 @@ async function apiFetch<T>(method: string, path: string, body?: unknown): Promis
 // ─── Low-level helpers (used by API objects below) ──────────
 const get = <T>(path: string, params?: Record<string, string>) => {
   const url = params ? path + "?" + new URLSearchParams(params).toString() : path;
-  return apiFetch<T>("GET", url);
+  return dedupFetch<T>("GET", url);
 };
-const post = <T>(path: string, body: unknown) => apiFetch<T>("POST", path, body);
-const put = <T>(path: string, body: unknown) => apiFetch<T>("PUT", path, body);
-const del = (path: string) => apiFetch<void>("DELETE", path);
-const patchReq = <T>(path: string, body: unknown) => apiFetch<T>("PATCH", path, body);
+const post = <T>(path: string, body: unknown) => dedupFetch<T>("POST", path, body);
+const put = <T>(path: string, body: unknown) => dedupFetch<T>("PUT", path, body);
+const del = (path: string) => dedupFetch<void>("DELETE", path);
+const patchReq = <T>(path: string, body: unknown) => dedupFetch<T>("PATCH", path, body);
 
 // ─── Client-side cache for summary responses ──────
 const summaryCache = new Map<string, { data: ServerSummary; expiry: number }>();

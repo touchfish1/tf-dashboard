@@ -176,10 +176,25 @@ export default function DeepSeekPage() {
     fetchData(true);
   }, [fetchData]);
 
-  // Auto-refresh every 60 seconds
+  // Auto-refresh every 60 seconds (skip when tab is hidden)
   useEffect(() => {
-    const interval = setInterval(() => fetchData(false), 60000);
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval> | null = null;
+    function start() {
+      if (interval) clearInterval(interval);
+      interval = setInterval(() => fetchData(false), 60000);
+    }
+    function stop() {
+      if (interval) { clearInterval(interval); interval = null; }
+    }
+    function onVisibility() {
+      if (document.hidden) stop(); else start();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    start();
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [fetchData]);
 
   // ─── Derived state ────────────────────────────────

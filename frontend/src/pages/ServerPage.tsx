@@ -197,20 +197,31 @@ export default function ServerPage() {
     setLoadingMetrics(true);
     setError(null);
 
-    Promise.all([
-      serversApi.metrics(selectedId, TIME_LIMITS[timeRange]),
-      serversApi.summary(selectedId),
-    ])
-      .then(([metricsData, summaryData]) => {
+    // Use cached summary from allSummaries if available (avoids double fetch)
+    const cached = allSummaries[selectedId];
+    if (cached) {
+      setSummary(cached);
+    }
+
+    serversApi.metrics(selectedId, TIME_LIMITS[timeRange])
+      .then((metricsData) => {
         setMetrics(metricsData);
-        setSummary(summaryData);
         setLoadingMetrics(false);
       })
       .catch((err) => {
         setError(err.message);
         setLoadingMetrics(false);
       });
-  }, [selectedId, timeRange]);
+
+    // Only fetch summary separately if not already cached
+    if (!cached) {
+      serversApi.summary(selectedId)
+        .then((summaryData) => {
+          setSummary(summaryData);
+        })
+        .catch(() => {});
+    }
+  }, [selectedId, timeRange, allSummaries]);
 
   const selectedServer = servers.find((s) => s.id === selectedId) ?? null;
   const latestMetrics = metrics.length > 0 ? metrics[metrics.length - 1] : null;

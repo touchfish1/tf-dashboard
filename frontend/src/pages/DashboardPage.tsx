@@ -74,6 +74,17 @@ export default function DashboardPage() {
   const [monthlyBudget, setMonthlyBudget] = useState<number>(0);
   const [monthlyCost, setMonthlyCost] = useState(0);
   const [anomaly, setAnomaly] = useState<{ todayCost: number; avgCost: number; ratio: number; status: string } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // ── Listen for SSE-driven data update events ──
+  useEffect(() => {
+    function handler(e: Event) {
+      const detail = (e as CustomEvent).detail as { type: string } | undefined;
+      if (detail) setRefreshKey((k) => k + 1);
+    }
+    window.addEventListener("tf:data-update", handler);
+    return () => window.removeEventListener("tf:data-update", handler);
+  }, []);
 
   // ── Clock tick ──
   useEffect(() => {
@@ -117,13 +128,13 @@ export default function DashboardPage() {
       if (!cancel) setLoading(false);
     })();
     return () => { cancel = true; };
-  }, [days]);
+  }, [days, refreshKey]);
 
   // ── Prediction fetch ──
   useEffect(() => {
     opencodeApi.predict(30, 14).then(setPrediction).catch(() => {});
     opencodeApi.anomaly().then(setAnomaly).catch(() => {});
-  }, []);
+  }, [refreshKey]);
 
   // ── Load dashboard config + budget (only when logged in) ──
   useEffect(() => {

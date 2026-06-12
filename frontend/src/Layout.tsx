@@ -176,6 +176,10 @@ export default function Layout() {
           ) {
             fetchAlerts();
           }
+          // Broadcast data update events so active pages can refetch
+          if (["opencode_usage_updated", "server_metrics", "deepseek_balance"].includes(data.type)) {
+            window.dispatchEvent(new CustomEvent("tf:data-update", { detail: { type: data.type } }));
+          }
         } catch {
           /* ignore parse errors */
         }
