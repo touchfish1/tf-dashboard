@@ -1,8 +1,9 @@
 import { db } from "../db";
 import { servers, serverMetrics } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { createAlert } from "../lib/alerts";
 import { logger } from "../lib/logger";
+import { emit } from "../lib/event-bus";
+import { markPollerStart, markPollerSuccess, markPollerError } from "../lib/poller-health";
 
 interface ServerMetricsResponse {
   hostname: string;
@@ -31,6 +32,7 @@ function isValidMetricsUrl(url: string): boolean {
 }
 
 export async function pollAllServers(): Promise<void> {
+  markPollerStart('servers');
   try {
     const activeServers = await db.select().from(servers).where(eq(servers.isActive, true));
 
@@ -67,12 +69,15 @@ export async function pollAllServers(): Promise<void> {
         });
 
         logger.info({ server: server.name, cpu: data.cpu.percent, memory: data.memory.percent, event: "metrics_collected" }, `${server.name}: 采集成功`);
+        emit({ type: 'server_metrics', serverId: server.id, serverName: server.name, cpuPercent: data.cpu.percent, memoryPercent: data.memory.percent, isOnline: true });
       } catch (err) {
         logger.warn({ server: server.name, err, event: "fetch_failed" }, `${server.name}: ${err}`);
-        await createAlert("server_offline", `服务器离线: ${server.name}`, `无法连接到 ${server.metricsUrl}`, "warning", String(server.id));
+        emit({ type: 'server_offline', serverId: server.id, serverName: server.name });
       }
     }
+    markPollerSuccess('servers');
   } catch (err) {
     logger.error({ err, event: "poller_failed" }, "获取服务器列表失败");
+    markPollerError('servers', String(err));
   }
 }

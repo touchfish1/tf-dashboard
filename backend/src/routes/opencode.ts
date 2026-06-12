@@ -171,7 +171,8 @@ router.get("/anomaly", async (c) => {
   `);
 
   const todayCost = parseFloat(todayRow?.cost || "0");
-  const avgCost = parseFloat(avgResult?.[0]?.avg_cost || "0");
+  const avgResultRow = (avgResult as unknown as Array<{ avg_cost: string }> | undefined)?.[0];
+  const avgCost = parseFloat(avgResultRow?.avg_cost || "0");
   const ratio = avgCost > 0 ? todayCost / avgCost : 0;
 
   // Create alert if anomaly detected

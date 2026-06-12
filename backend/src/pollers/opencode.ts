@@ -2,7 +2,8 @@ import { db } from "../db";
 import { opencodeUsage, settings } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
-import { createAlert } from "../lib/alerts";
+import { emit } from "../lib/event-bus";
+import { markPollerStart, markPollerSuccess, markPollerError } from "../lib/poller-health";
 
 const DB_PATH = process.env.OPENCODE_DB_PATH || `${process.env.HOME}/.local/share/opencode/opencode.db`;
 
@@ -120,13 +121,16 @@ function aggregateAndStore(rows: SessionRow[]): void {
       tokensCacheWrite: bucket.tcw,
       cost: String(Math.round(bucket.cost * 1000000) / 1000000),
       sessionCount: bucket.count,
-    }).onConflictDoNothing().catch(() => {});
+    }).onConflictDoNothing().catch((err) => {
+      logger.warn({ err, event: 'opencode_upsert_failed' }, 'OpenCode 去重插入失败');
+    });
   }
 
   logger.info({ sessionCount: rows.length, bucketCount: buckets.size, event: "aggregated" }, `聚合完成: ${rows.length} 会话 → ${buckets.size} 桶`);
 }
 
 export async function pollOpenCodeUsage(): Promise<void> {
+  markPollerStart('opencode');
   try {
     const api = await getApiConfig();
     let rows: SessionRow[];
@@ -140,8 +144,10 @@ export async function pollOpenCodeUsage(): Promise<void> {
     }
 
     aggregateAndStore(rows);
+    markPollerSuccess('opencode');
   } catch (err) {
     logger.error({ err, event: "etl_failed" }, "OpenCode ETL failed");
-    await createAlert("opencode_error", "OpenCode 采集失败", `错误: ${err}`, "warning").catch(() => {});
+    emit({ type: 'opencode_etl_error', error: String(err) });
+    markPollerError('opencode', String(err));
   }
 }

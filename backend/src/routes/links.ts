@@ -7,6 +7,7 @@ import {
   parseParam, parseJson,
 } from "../lib/validation";
 import { writeAuditLog } from "../lib/audit";
+import { requireAdmin } from "../middleware/auth";
 
 const router = new Hono();
 
@@ -15,7 +16,7 @@ router.get("/", async (c) => {
   return c.json(rows);
 });
 
-router.post("/", async (c) => {
+router.post("/", requireAdmin, async (c) => {
   const body = await parseJson(c, CreateLinkBody);
   const max = await db.select({ m: navLinks.sortOrder }).from(navLinks).orderBy(desc(navLinks.sortOrder)).limit(1);
   const nextOrder = (max?.[0]?.m ?? -1) + 1;
@@ -26,7 +27,7 @@ router.post("/", async (c) => {
   return c.json(created, 201);
 });
 
-router.put("/:id", async (c) => {
+router.put("/:id", requireAdmin, async (c) => {
   const id = parseParam(c, "id", IdParam) as number;
   const body = await parseJson(c, UpdateLinkBody);
   const [updated] = await db.update(navLinks).set(body).where(eq(navLinks.id, id)).returning();
@@ -35,7 +36,7 @@ router.put("/:id", async (c) => {
   return c.json(updated);
 });
 
-router.delete("/:id", async (c) => {
+router.delete("/:id", requireAdmin, async (c) => {
   const id = parseParam(c, "id", IdParam) as number;
   await db.delete(navLinks).where(eq(navLinks.id, id));
   writeAuditLog({ type: "operation", action: "link.delete", resource: "links", resourceId: String(id) }, c);

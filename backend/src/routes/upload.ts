@@ -1,5 +1,8 @@
 import { Hono } from "hono";
-import { serveStatic } from "hono/serve-static";
+import { serveStatic } from "hono/bun";
+
+import { requireAdmin } from "../middleware/auth";
+import { logger } from "../lib/logger";
 
 const router = new Hono();
 
@@ -7,10 +10,12 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads";
 
 // Ensure upload directory exists
 import { mkdir } from "fs/promises";
-mkdir(UPLOAD_DIR, { recursive: true }).catch(() => {});
+mkdir(UPLOAD_DIR, { recursive: true }).catch((err) => {
+  logger.warn({ err, event: 'mkdir_failed' }, '上传目录创建失败');
+});
 
 // File upload
-router.post("/upload", async (c) => {
+router.post("/upload", requireAdmin, async (c) => {
   const body = await c.req.parseBody();
   const file = body["file"] as File | null;
   if (!file) return c.json({ error: "no file provided" }, 400);

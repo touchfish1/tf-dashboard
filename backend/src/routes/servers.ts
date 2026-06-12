@@ -8,6 +8,7 @@ import {
   parseParam, parseJson,
 } from "../lib/validation";
 import { writeAuditLog } from "../lib/audit";
+import { requireAdmin } from "../middleware/auth";
 
 const router = new Hono();
 
@@ -23,7 +24,7 @@ router.get("/:id", async (c) => {
   return c.json(server);
 });
 
-router.post("/", async (c) => {
+router.post("/", requireAdmin, async (c) => {
   const body = await parseJson(c, CreateServerBody);
   const [created] = await db.insert(servers).values({
     name: body.name,
@@ -34,7 +35,7 @@ router.post("/", async (c) => {
   return c.json(created, 201);
 });
 
-router.patch("/:id", async (c) => {
+router.patch("/:id", requireAdmin, async (c) => {
   const id = parseParam(c, "id", IdParam) as number;
   const body = await parseJson(c, UpdateServerBody);
   const [updated] = await db.update(servers).set(body).where(eq(servers.id, id)).returning();
@@ -43,7 +44,7 @@ router.patch("/:id", async (c) => {
   return c.json(updated);
 });
 
-router.delete("/:id", async (c) => {
+router.delete("/:id", requireAdmin, async (c) => {
   const id = parseParam(c, "id", IdParam) as number;
   await db.delete(servers).where(eq(servers.id, id));
   writeAuditLog({ type: "operation", action: "server.delete", resource: "servers", resourceId: String(id) }, c);
