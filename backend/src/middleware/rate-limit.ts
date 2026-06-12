@@ -40,7 +40,8 @@ export function rateLimit(config?: Partial<RateLimitConfig>) {
     const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim()
       || c.req.header("x-real-ip")
       || "unknown";
-    const key = `rl:${ip}`;
+    // Include path in the key so different route limits don't share the same counter
+    const key = `rl:${c.req.path}:${ip}`;
     const now = Date.now();
 
     let entry = store.get(key);

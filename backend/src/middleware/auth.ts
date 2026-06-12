@@ -7,11 +7,18 @@ import { logger } from "../lib/logger";
 /**
  * JWT + API key auth middleware.
  *
- * 1. Tries JWT Bearer token first
- * 2. Falls back to x-api-key header / ?api_key= query param
- * 3. Returns 401 if neither is valid
+ * 1. Public GET requests pass through (read-only access to non-settings endpoints)
+ * 2. Tries JWT Bearer token first
+ * 3. Falls back to x-api-key header / ?api_key= query param
+ * 4. Returns 401 if neither is valid
  */
 export async function authMiddleware(c: Context, next: Next) {
+  // Allow public GET requests (read-only) — except settings and auth endpoints
+  if (c.req.method === 'GET' && !c.req.path.startsWith('/api/settings') && !c.req.path.startsWith('/api/auth')) {
+    await next();
+    return;
+  }
+
   const authHeader = c.req.header("Authorization");
 
   // Try JWT Bearer token
