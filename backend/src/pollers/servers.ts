@@ -20,7 +20,7 @@ interface ServerMetricsResponse {
  * Allows http/https only, blocks cloud metadata endpoints.
  * localhost/private IPs are allowed (admin-configured, not user input).
  */
-function isValidMetricsUrl(url: string): boolean {
+export function isValidMetricsUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
@@ -36,16 +36,16 @@ export async function pollAllServers(): Promise<void> {
   try {
     const activeServers = await db.select().from(servers).where(eq(servers.isActive, true));
 
-    for (const server of activeServers) {
+    await Promise.allSettled(activeServers.map(async (server) => {
       if (!isValidMetricsUrl(server.metricsUrl)) {
         logger.warn({ server: server.name, url: server.metricsUrl, event: "ssrf_blocked" }, "SSRF拦截");
-        continue;
+        return;
       }
       try {
         const resp = await fetch(server.metricsUrl, { signal: AbortSignal.timeout(5000) });
         if (!resp.ok) {
           logger.warn({ server: server.name, status: resp.status, event: "http_error" }, `HTTP ${resp.status}`);
-          continue;
+          return;
         }
         const data: ServerMetricsResponse = await resp.json();
 
@@ -74,7 +74,7 @@ export async function pollAllServers(): Promise<void> {
         logger.warn({ server: server.name, err, event: "fetch_failed" }, `${server.name}: ${err}`);
         emit({ type: 'server_offline', serverId: server.id, serverName: server.name });
       }
-    }
+    }));
     markPollerSuccess('servers');
   } catch (err) {
     logger.error({ err, event: "poller_failed" }, "获取服务器列表失败");

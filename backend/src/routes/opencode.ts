@@ -75,7 +75,7 @@ router.get("/by-model", async (c) => {
 
 // ─── Prediction helper: simple linear regression ────────────────
 
-function linreg(values: number[]) {
+export function linreg(values: number[]) {
   const n = values.length;
   if (n < 3) return { slope: 0, intercept: values[0] || 0, next: (steps: number) => values[0] || 0 };
 
@@ -93,6 +93,14 @@ function linreg(values: number[]) {
     intercept,
     next: (steps: number) => Math.max(0, intercept + slope * (n - 1 + steps)),
   };
+}
+
+// ─── Anomaly detection helper ──────────────────────────────────
+
+export function detectAnomaly(todayCost: number, avgCost: number): { ratio: number; status: string } {
+  const ratio = avgCost > 0 ? todayCost / avgCost : 0;
+  const status = ratio > 2 ? "anomaly" : ratio > 1.5 ? "elevated" : "normal";
+  return { ratio, status };
 }
 
 // Get usage prediction for next N days
@@ -173,7 +181,7 @@ router.get("/anomaly", async (c) => {
   const todayCost = parseFloat(todayRow?.cost || "0");
   const avgResultRow = (avgResult as unknown as Array<{ avg_cost: string }> | undefined)?.[0];
   const avgCost = parseFloat(avgResultRow?.avg_cost || "0");
-  const ratio = avgCost > 0 ? todayCost / avgCost : 0;
+  const { ratio, status } = detectAnomaly(todayCost, avgCost);
 
   // Create alert if anomaly detected
   if (ratio > 2 && avgCost > 0.01) {
@@ -190,7 +198,7 @@ router.get("/anomaly", async (c) => {
     todayCost: parseFloat(todayCost.toFixed(4)),
     avgCost: parseFloat(avgCost.toFixed(4)),
     ratio: parseFloat(ratio.toFixed(2)),
-    status: ratio > 2 ? "anomaly" : ratio > 1.5 ? "elevated" : "normal",
+    status,
   });
 });
 

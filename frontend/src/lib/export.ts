@@ -1,17 +1,23 @@
 /** Client-side CSV export */
 
+export function escapeCSVCell(v: string): string {
+  return `"${v.replace(/"/g, '""')}"`;
+}
+
+export function buildCSV(headers: string[], rows: string[][]): string {
+  return [
+    headers.join(","),
+    ...rows.map((r) => r.map(escapeCSVCell).join(",")),
+  ].join("\n");
+}
+
 export function downloadCSV(
   filename: string,
   headers: string[],
   rows: string[][]
 ) {
-  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const lines = [
-    headers.join(","),
-    ...rows.map((r) => r.map(escape).join(",")),
-  ];
   const bom = "\uFEFF";
-  const blob = new Blob([bom + lines.join("\n")], {
+  const blob = new Blob([bom + buildCSV(headers, rows)], {
     type: "text/csv;charset=utf-8;",
   });
   const url = URL.createObjectURL(blob);

@@ -59,3 +59,7 @@ export function markPollerError(name: string, error: string): void {
 export function getAllPollerStatus(): PollerStatus[] {
   return Array.from(pollers.values());
 }
+
+export function clearPollerHealth(): void {
+  pollers.clear();
+}

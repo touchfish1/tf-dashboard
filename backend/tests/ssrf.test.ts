@@ -1,16 +1,5 @@
 import { describe, it, expect } from "bun:test";
-
-// Copy of the SSRF validation function from pollers/servers.ts
-function isValidMetricsUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
-    if (parsed.hostname === "169.254.169.254") return false;
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { isValidMetricsUrl } from "../src/pollers/servers";
 
 describe("SSRF Protection", () => {
   it("allows valid http URLs", () => {

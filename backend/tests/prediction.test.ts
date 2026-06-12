@@ -1,25 +1,5 @@
 import { describe, expect, test } from "bun:test";
-
-// Replicate the linear regression helper from routes/opencode.ts
-function linreg(values: number[]) {
-  const n = values.length;
-  if (n < 3) return { slope: 0, intercept: values[0] || 0, next: (steps: number) => values[0] || 0 };
-
-  const indices = Array.from({ length: n }, (_, i) => i);
-  const sumX = indices.reduce((a, b) => a + b, 0);
-  const sumY = values.reduce((a, b) => a + b, 0);
-  const sumXY = indices.reduce((a, _, i) => a + i * values[i], 0);
-  const sumX2 = indices.reduce((a, _, i) => a + i * i, 0);
-
-  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-  const intercept = (sumY - slope * sumX) / n;
-
-  return {
-    slope,
-    intercept,
-    next: (steps: number) => Math.max(0, intercept + slope * (n - 1 + steps)),
-  };
-}
+import { linreg } from "../src/routes/opencode";
 
 describe("linreg (linear regression)", () => {
   test("returns zero slope for constant values", () => {
