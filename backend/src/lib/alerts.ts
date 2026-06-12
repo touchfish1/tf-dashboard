@@ -90,5 +90,7 @@ async function pushToWebhook(alert: { type: string; severity: string; title: str
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  }).catch(() => {});
+  }).catch((err) => {
+    logger.warn({ err, event: 'webhook_push_failed' }, 'Webhook推送失败');
+  });
 }

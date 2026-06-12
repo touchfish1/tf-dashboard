@@ -68,6 +68,45 @@ export const ALLOWED_IMAGE_TYPES = [
 
 export const MAX_UPLOAD_SIZE = 5 * 1024 * 1024; // 5MB
 
+// ─── Alert Rules ─────────────────────────────────────
+
+export const RuleCondition = z.object({
+  field: z.enum(['deepseek_balance', 'server_offline', 'opencode_etl_error', 'opencode_cost_anomaly', 'monthly_budget_pct', 'cpu_percent', 'memory_percent']),
+  operator: z.enum(['lt', 'lte', 'gt', 'gte', 'eq', 'true']),
+  value: z.number().optional(),
+  unit: z.string().optional(),
+});
+
+export const CreateAlertRuleBody = z.object({
+  name: z.string().min(1).max(200),
+  enabled: z.boolean().optional().default(true),
+  conditions: z.array(RuleCondition).min(1).max(20),
+  matchMode: z.enum(['all', 'any']).optional().default('all'),
+  notificationChannels: z.array(z.string()).optional().default([]),
+  cooldownMinutes: z.number().int().min(0).max(1440).optional().default(360),
+  severity: z.enum(['info', 'warning', 'critical']).optional().default('warning'),
+});
+
+export const UpdateAlertRuleBody = z.object({
+  name: z.string().min(1).max(200).optional(),
+  enabled: z.boolean().optional(),
+  conditions: z.array(RuleCondition).min(1).max(20).optional(),
+  matchMode: z.enum(['all', 'any']).optional(),
+  notificationChannels: z.array(z.string()).optional(),
+  cooldownMinutes: z.number().int().min(0).max(1440).optional(),
+  severity: z.enum(['info', 'warning', 'critical']).optional(),
+});
+
+// ─── Notification Channels (settings KV) ────────────
+
+export const NotificationChannel = z.object({
+  type: z.enum(['slack', 'feishu', 'dingtalk', 'wecom', 'webhook_generic']),
+  url: z.string().url().max(2000),
+  name: z.string().min(1).max(100),
+});
+
+export const NotificationChannelsArray = z.array(NotificationChannel).max(20);
+
 // ─── Helper ──────────────────────────────────────────
 
 import type { Context } from "hono";

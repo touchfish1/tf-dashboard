@@ -2,7 +2,7 @@ import { db } from "../db";
 import { auditLog } from "../db/schema";
 import { desc } from "drizzle-orm";
 import type { Context } from "hono";
-import { getRequestMeta } from "./logger";
+import { getRequestMeta, logger } from "./logger";
 
 type AuditType = "operation" | "access";
 type AuditAction =
@@ -10,7 +10,10 @@ type AuditAction =
   | "link.create" | "link.update" | "link.delete"
   | "settings.update" | "settings.delete"
   | "alert.create" | "alert.ack"
-  | "upload.file";
+  | "alert_rule.create" | "alert_rule.update" | "alert_rule.delete"
+  | "notification_channels.update"
+  | "upload.file"
+  | "auth.login" | "auth.change_password";
 
 interface AuditInput {
   type: AuditType;
@@ -28,18 +31,30 @@ interface AuditInput {
 export async function writeAuditLog(input: AuditInput, c?: Context): Promise<void> {
   const meta = c ? getRequestMeta(c) : {};
 
+  // Capture authenticated user from request context
+  let actor = "system";
+  if (c) {
+    const user = c.get("user") as { email?: string } | undefined;
+    if (user?.email) {
+      actor = user.email;
+    } else if (input.detail?.email) {
+      actor = input.detail.email as string;
+    }
+  }
+
   await db.insert(auditLog).values({
     type: input.type,
     action: input.action,
     resource: input.resource,
     resourceId: input.resourceId || null,
     detail: input.detail ? JSON.stringify(input.detail) : null,
+    actor,
     ip: meta.ip || null,
     userAgent: meta.ua ? meta.ua.slice(0, 200) : null,
     status: input.status ?? null,
     durationMs: input.durationMs ?? null,
-  }).catch(() => {
-    // Audit logging must never break the main flow
+  }).catch((err) => {
+    logger.warn({ err, event: 'audit_write_failed' }, '写入审计日志失败');
   });
 }
 

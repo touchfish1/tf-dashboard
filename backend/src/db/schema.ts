@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, decimal, boolean, timestamp, bigint, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, decimal, boolean, timestamp, bigint, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 
 // ─── Navigation links ───────────────────────────────────────────
 export const navLinks = pgTable("nav_links", {
@@ -69,6 +69,21 @@ export const alerts = pgTable("alerts", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ─── Alert rules ────────────────────────────────────────────────
+export const alertRules = pgTable("alert_rules", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  enabled: boolean("enabled").default(true),
+  conditions: jsonb("conditions").notNull(),
+  matchMode: text("match_mode").default("all"),
+  notificationChannels: jsonb("notification_channels").default([]),
+  cooldownMinutes: integer("cooldown_minutes").default(360),
+  severity: text("severity").default("warning"),
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // ─── Audit log (operations & access) ────────────────────────────
 export const auditLog = pgTable("audit_log", {
   id: serial("id").primaryKey(),
@@ -83,6 +98,27 @@ export const auditLog = pgTable("audit_log", {
   userAgent: text("user_agent"),
   status: integer("status"),
   durationMs: integer("duration_ms"),
+});
+
+// ─── Users (auth) ────────────────────────────────────────────────
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  displayName: text("display_name").notNull(),
+  role: text("role").notNull().default("viewer"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastLogin: timestamp("last_login"),
+});
+
+// ─── Refresh tokens (auth) ────────────────────────────────────────
+export const refreshTokens = pgTable("refresh_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // ─── Server metrics time series ──────────────────────────────────
@@ -102,4 +138,17 @@ export const serverMetrics = pgTable("server_metrics", {
   networkRxBytes: bigint("network_rx_bytes", { mode: "number" }),
   networkTxBytes: bigint("network_tx_bytes", { mode: "number" }),
   uptimeSeconds: bigint("uptime_seconds", { mode: "number" }),
+});
+
+// ─── Scheduled reports ──────────────────────────────
+export const scheduledReports = pgTable("scheduled_reports", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(),             // 'daily' | 'weekly'
+  status: text("status").default("pending"), // 'pending' | 'sent' | 'failed'
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  content: text("content"),                 // rendered HTML
+  sentTo: text("sent_to").array(),          // channel names delivered to
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow(),
 });

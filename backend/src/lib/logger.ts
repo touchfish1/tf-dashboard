@@ -93,10 +93,4 @@ export function getRequestMeta(c: Context): Record<string, string> {
   return (c.get("requestMeta") as Record<string, string>) || {};
 }
 
-/**
- * Get the request-scoped logger from Hono context.
- */
-export function getLogger(c: Context): pino.Logger {
-  const l = c.get("logger");
-  return (l as pino.Logger) || logger;
-}
+
