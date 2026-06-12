@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, decimal, boolean, timestamp, bigint, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, decimal, boolean, timestamp, bigint, uniqueIndex, index, jsonb } from "drizzle-orm/pg-core";
 
 // ─── Navigation links ───────────────────────────────────────────
 export const navLinks = pgTable("nav_links", {
@@ -67,7 +67,10 @@ export const alerts = pgTable("alerts", {
   refId: text("ref_id"),                // server id, etc.
   acknowledged: boolean("acknowledged").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  ackIdx: index("idx_alerts_acknowledged").on(table.acknowledged),
+  createdAtIdx: index("idx_alerts_created_at").on(table.createdAt),
+}));
 
 // ─── Alert rules ────────────────────────────────────────────────
 export const alertRules = pgTable("alert_rules", {
@@ -98,7 +101,9 @@ export const auditLog = pgTable("audit_log", {
   userAgent: text("user_agent"),
   status: integer("status"),
   durationMs: integer("duration_ms"),
-});
+}, (table) => ({
+  timestampIdx: index("idx_audit_timestamp").on(table.timestamp),
+}));
 
 // ─── Users (auth) ────────────────────────────────────────────────
 export const users = pgTable("users", {
@@ -138,7 +143,11 @@ export const serverMetrics = pgTable("server_metrics", {
   networkRxBytes: bigint("network_rx_bytes", { mode: "number" }),
   networkTxBytes: bigint("network_tx_bytes", { mode: "number" }),
   uptimeSeconds: bigint("uptime_seconds", { mode: "number" }),
-});
+}, (table) => ({
+  serverIdIdx: index("idx_server_metrics_server_id").on(table.serverId),
+  collectedAtIdx: index("idx_server_metrics_collected_at").on(table.collectedAt),
+  serverTimeIdx: index("idx_server_metrics_server_time").on(table.serverId, table.collectedAt),
+}));
 
 // ─── Scheduled reports ──────────────────────────────
 export const scheduledReports = pgTable("scheduled_reports", {

@@ -19,7 +19,8 @@ router.get("/history", async (c) => {
   const rows = await db.select()
     .from(deepseekBalance)
     .where(sql`recorded_at >= NOW() - INTERVAL '1 day' * ${q.days}`)
-    .orderBy(desc(deepseekBalance.recordedAt));
+    .orderBy(desc(deepseekBalance.recordedAt))
+    .limit(500);
   return c.json(rows);
 });
 

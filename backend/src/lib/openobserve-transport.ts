@@ -13,8 +13,9 @@
  */
 
 import { Writable } from "stream";
-import { logger } from "./logger";
 
+// logger.ts imports createOpenObserveStream — importing logger here creates a
+// circular dependency. Avoid top-level import; log at module scope via console.
 const URL = process.env.OPENOBSERVE_URL;
 const ORG  = process.env.OPENOBSERVE_ORG;
 const STREAM = process.env.OPENOBSERVE_STREAM;
@@ -26,14 +27,14 @@ let timer: ReturnType<typeof setInterval> | null = null;
 
 export function createOpenObserveStream(): Writable | null {
   if (!URL || !ORG || !STREAM || !USER || !PASS) {
-    logger.info({ event: 'openobserve_disabled' }, 'OpenObserve 未配置（需要 OPENOBSERVE_URL/USER/PASSWORD/ORG/STREAM），日志仅输出到 stdout');
+    console.log('[openobserve] 未配置 — 日志仅输出到 stdout');
     return null;
   }
 
   const endpoint = `${URL}/api/${ORG}/${STREAM}/_json`;
   const auth = `${USER}:${PASS}`;
   const encoded = Buffer.from(auth).toString("base64");
-  logger.info({ endpoint, event: 'openobserve_enabled' }, `OpenObserve 日志已启用: ${endpoint}`);
+  console.log(`[openobserve] 日志已启用: ${endpoint}`);
 
   const stream = new Writable({
     write(chunk: Buffer | string, _enc, cb) {
@@ -55,7 +56,7 @@ export function createOpenObserveStream(): Writable | null {
       },
       body: `[${batch.join(",")}]`,
     }).catch((err) => {
-      logger.warn({ err, event: 'openobserve_push_failed' }, 'OpenObserve 日志推送失败');
+      console.warn('[openobserve] 日志推送失败:', err);
     });
   }, 2000);
 

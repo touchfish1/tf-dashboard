@@ -15,6 +15,7 @@ import {
 } from "../lib/auth";
 import { writeAuditLog } from "../lib/audit";
 import { logger } from "../lib/logger";
+import { authMiddleware } from "../middleware/auth";
 
 const router = new Hono();
 
@@ -191,7 +192,7 @@ router.post("/refresh", async (c) => {
 
 // ─── GET /me ──────────────────────────────────────────────────────
 
-router.get("/me", async (c) => {
+router.get("/me", authMiddleware, async (c) => {
   const authUser = c.get("user") as { userId: number; role: string; email: string } | undefined;
   if (!authUser) {
     return c.json({ error: "unauthorized" }, 401);

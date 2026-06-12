@@ -35,6 +35,7 @@ import { subscribe } from "./lib/event-bus";
 import { evaluateEvent } from "./lib/alert-engine";
 import { startReportScheduler, reportCronJobs } from "./lib/reports";
 import { rateLimit, clearRateLimitCleanup } from "./middleware/rate-limit";
+import { cache, invalidateCache, clearCacheCleanup } from "./middleware/cache";
 import { db, client } from "./db";
 import { alertRules } from "./db/schema";
 
@@ -75,6 +76,17 @@ app.route("/api/status", statusRoute);
 
 // JWT + API key auth middleware for all remaining /api/* routes
 app.use("/api/*", authMiddleware);
+
+// ─── Caching (read-heavy GET endpoints) ─────────────────────────
+// Applied after auth, before route handlers. Only affects GET requests.
+app.use('/api/opencode/summary', cache(30));    // 30s TTL
+app.use('/api/opencode/usage', cache(15));      // 15s TTL
+app.use('/api/opencode/by-model', cache(30));   // 30s TTL
+app.use('/api/opencode/predict', cache(300));   // 5min TTL
+app.use('/api/deepseek/balance', cache(15));    // 15s TTL
+app.use('/api/servers', cache(10));             // 10s TTL
+app.use('/api/links', cache(60));              // 60s TTL
+app.use('/api/settings', cache(30));            // 30s TTL
 
 // Unified error handler
 app.onError((err, c) => {
@@ -206,6 +218,22 @@ logger.info({ event: "server_start", port, host }, "后端服务启动");
 // Wire alert engine to event bus (must happen before pollers start)
 subscribe((event) => { evaluateEvent(event).catch((err) => logger.error({ err, event: 'alert_engine_error' }, 'Alert engine failed')); });
 
+// Cache invalidation: when pollers update data, bust related cache entries
+subscribe((event) => {
+  switch (event.type) {
+    case 'deepseek_balance':
+      invalidateCache('/api/deepseek');
+      break;
+    case 'server_metrics':
+    case 'server_offline':
+      invalidateCache('/api/servers');
+      break;
+    case 'opencode_usage_updated':
+      invalidateCache('/api/opencode');
+      break;
+  }
+});
+
 // Seed default alert rules (fire-and-forget, first run only)
 seedDefaultRules();
 
@@ -235,6 +263,8 @@ function shutdown(signal: string) {
 
   // Stop rate limiter cleanup interval
   clearRateLimitCleanup();
+  // Stop cache cleanup interval
+  clearCacheCleanup();
 
   // Close database connection
   client.end().catch((err: unknown) => {

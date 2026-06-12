@@ -185,6 +185,82 @@ async function setup() {
         ON audit_log(timestamp DESC);
     `;
 
+    // New tables from recent feature development
+    await client`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'viewer',
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        last_login TIMESTAMPTZ
+      );
+    `;
+    console.log("   ✅ users");
+
+    await client`
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+    console.log("   ✅ refresh_tokens");
+
+    await client`
+      CREATE TABLE IF NOT EXISTS alert_rules (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        enabled BOOLEAN DEFAULT TRUE,
+        conditions JSONB NOT NULL,
+        match_mode TEXT DEFAULT 'all',
+        notification_channels JSONB DEFAULT '[]',
+        cooldown_minutes INT DEFAULT 360,
+        severity TEXT DEFAULT 'warning',
+        created_by INT REFERENCES users(id),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+    console.log("   ✅ alert_rules");
+
+    await client`
+      CREATE TABLE IF NOT EXISTS scheduled_reports (
+        id SERIAL PRIMARY KEY,
+        type TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        period_start TIMESTAMPTZ NOT NULL,
+        period_end TIMESTAMPTZ NOT NULL,
+        content TEXT,
+        sent_to TEXT[],
+        error TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+    console.log("   ✅ scheduled_reports");
+
+    // Performance indexes
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_server_metrics_server_id
+        ON server_metrics(server_id);
+    `;
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_server_metrics_collected_at
+        ON server_metrics(collected_at DESC);
+    `;
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_alerts_acknowledged
+        ON alerts(acknowledged);
+    `;
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_alerts_created_at
+        ON alerts(created_at DESC);
+    `;
+
     await client.end();
     console.log("\n🎉 Database setup complete!");
   } catch (err) {

@@ -69,7 +69,7 @@ async function getApiSessions(api: { url: string; key: string }): Promise<Sessio
   return data.sessions;
 }
 
-function aggregateAndStore(rows: SessionRow[]): void {
+async function aggregateAndStore(rows: SessionRow[]): Promise<void> {
   if (rows.length === 0) {
     logger.info({ event: "no_data" }, "OpenCode: 无新会话需要聚合");
     return;
@@ -104,12 +104,11 @@ function aggregateAndStore(rows: SessionRow[]): void {
     }
   }
 
-  for (const [key, bucket] of buckets) {
+  const values = Array.from(buckets.entries()).map(([key, bucket]) => {
     const [hourStr] = key.split("|");
     const start = new Date(hourStr);
     const end = new Date(start.getTime() + 3600000);
-
-    db.insert(opencodeUsage).values({
+    return {
       bucketStart: start,
       bucketEnd: end,
       model: bucket.model,
@@ -121,8 +120,12 @@ function aggregateAndStore(rows: SessionRow[]): void {
       tokensCacheWrite: bucket.tcw,
       cost: String(Math.round(bucket.cost * 1000000) / 1000000),
       sessionCount: bucket.count,
-    }).onConflictDoNothing().catch((err) => {
-      logger.warn({ err, event: 'opencode_upsert_failed' }, 'OpenCode 去重插入失败');
+    };
+  });
+
+  if (values.length > 0) {
+    await db.insert(opencodeUsage).values(values).onConflictDoNothing().catch((err) => {
+      logger.warn({ err, event: 'opencode_batch_upsert_failed' }, 'OpenCode 批量插入失败');
     });
   }
 
@@ -143,7 +146,7 @@ export async function pollOpenCodeUsage(): Promise<void> {
       rows = getLocalSessions();
     }
 
-    aggregateAndStore(rows);
+    await aggregateAndStore(rows);
     markPollerSuccess('opencode');
   } catch (err) {
     logger.error({ err, event: "etl_failed" }, "OpenCode ETL failed");
