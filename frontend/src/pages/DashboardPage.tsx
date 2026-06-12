@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { opencodeApi, deepseekApi, serversApi, linksApi, dashboardConfigApi, settingsApi } from "../api";
+import { getAccessToken } from "../auth";
 import type { OpenCodeDailyUsage, OpenCodeSummary, OpenCodeByModel, OpenCodePrediction, DeepSeekBalance, Server, ServerSummary, NavLink, DashboardConfig } from "../types";
 import DashboardConfigPanel from "@/components/DashboardConfig";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -124,8 +125,9 @@ export default function DashboardPage() {
     opencodeApi.anomaly().then(setAnomaly).catch(() => {});
   }, []);
 
-  // ── Load dashboard config + budget ──
+  // ── Load dashboard config + budget (only when logged in) ──
   useEffect(() => {
+    if (!getAccessToken()) return;
     dashboardConfigApi.get().then(setCfg);
     settingsApi.get("monthly_budget").then((r) => setMonthlyBudget(parseFloat(r.value || "0"))).catch(() => {});
   }, []);

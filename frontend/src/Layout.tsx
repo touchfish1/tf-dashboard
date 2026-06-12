@@ -141,7 +141,9 @@ export default function Layout() {
     return () => document.removeEventListener("mousedown", cb);
   }, []);
   useEffect(() => {
-    // Initial fetch for immediate alert state
+    // Only subscribe to alerts and SSE when user is logged in
+    if (!getAccessToken()) return;
+
     const fetchAlerts = () => {
       alertsApi.unread().then((r) => setUnread(r.count)).catch(() => {});
       alertsApi.list(10).then(setAlertsList).catch(() => {});
@@ -183,7 +185,6 @@ export default function Layout() {
         es?.close();
         reconnectFailures++;
         if (reconnectFailures >= 3) {
-          // Fall back to polling when SSE repeatedly fails
           if (!fallbackPollId) {
             fallbackPollId = setInterval(fetchAlerts, 60000);
           }
@@ -191,7 +192,7 @@ export default function Layout() {
       };
 
       es.onopen = () => {
-        reconnectFailures = 0; // Reset on successful connection
+        reconnectFailures = 0;
       };
     }
 
