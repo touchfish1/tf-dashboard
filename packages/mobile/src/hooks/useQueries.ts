@@ -73,10 +73,17 @@ export function useNavLinks() {
   return useQuery({ queryKey: ['links'], queryFn: linksApi.list })
 }
 
-// ─── Alerts ─────────────────────────────────
+// ─── Alerts (detailed) ──────────────────────
 export function useAlerts(limit = 20) {
   return useQuery({
     queryKey: ['alerts', limit],
+    queryFn: () => alertsApi.list(limit),
+  })
+}
+
+export function useAlertsList(limit = 10) {
+  return useQuery({
+    queryKey: ['alerts', 'list', limit],
     queryFn: () => alertsApi.list(limit),
   })
 }
@@ -85,5 +92,19 @@ export function useUnreadAlertCount() {
   return useQuery({
     queryKey: ['alerts', 'unread'],
     queryFn: alertsApi.unread,
+  })
+}
+
+// ─── Anomaly (direct fetch, not in shared API) ─
+export function useOpenCodeAnomaly() {
+  return useQuery({
+    queryKey: ['opencode', 'anomaly'],
+    queryFn: async () => {
+      const { useSettings } = await import('../store/settings')
+      const baseUrl = useSettings.getState().apiUrl.replace(/\/$/, '')
+      const res = await fetch(`${baseUrl}/api/opencode/anomaly`)
+      if (!res.ok) throw new Error('Failed to fetch anomaly')
+      return res.json() as Promise<{ todayCost: number; avgCost: number; ratio: number; status: string }>
+    },
   })
 }

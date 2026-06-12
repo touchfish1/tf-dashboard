@@ -7,23 +7,30 @@ export const api = axios.create({
 })
 
 let _getApiKey: (() => Promise<string | null>) | null = null
+let _getToken: (() => Promise<string | null>) | null = null
 
-/** Configure base URL and API key provider on app startup.
- *  Mobile calls this with the server address + keychain reader.
+/** Configure base URL, API key provider, and JWT token provider on app startup.
+ *  Mobile calls this with the server address + keychain reader + auth token.
  *  Web calls this with default (relative) and no key. */
 export function configureApi(opts: {
   baseURL: string
   apiKeyProvider?: () => Promise<string | null>
+  tokenProvider?: () => Promise<string | null>
 }) {
   api.defaults.baseURL = opts.baseURL
   _getApiKey = opts.apiKeyProvider ?? null
+  _getToken = opts.tokenProvider ?? null
 }
 
-// Request interceptor — attach API key if available
+// Request interceptor — attach API key and Bearer token if available
 api.interceptors.request.use(async (config) => {
   if (_getApiKey) {
     const key = await _getApiKey()
     if (key) config.headers.set('x-api-key', key)
+  }
+  if (_getToken) {
+    const token = await _getToken()
+    if (token) config.headers.set('Authorization', `Bearer ${token}`)
   }
   return config
 })

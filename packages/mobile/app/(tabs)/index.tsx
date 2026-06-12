@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native'
+import { useState } from 'react'
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Modal } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -9,7 +10,8 @@ import { EmptyState } from '../../src/components/EmptyState'
 import { StatCardSkeleton } from '../../src/components/LoadingSkeleton'
 import { TokenTrendChart } from '../../src/components/TokenTrendChart'
 import { useRefresh } from '../../src/hooks/useRefresh'
-import { useOpenCodeSummary, useOpenCodeUsage, useServers, useNavLinks, useUnreadAlertCount } from '../../src/hooks/useQueries'
+import { useOpenCodeSummary, useOpenCodeUsage, useOpenCodePrediction, useOpenCodeAnomaly, useServers, useNavLinks, useUnreadAlertCount, useAlertsList } from '../../src/hooks/useQueries'
+import { useHealth } from '../../src/hooks/useHealth'
 
 export default function DashboardScreen() {
   const { refreshing, onRefresh } = useRefresh()
@@ -18,6 +20,11 @@ export default function DashboardScreen() {
   const { data: servers } = useServers()
   const { data: links } = useNavLinks()
   const { data: unread } = useUnreadAlertCount()
+  const { data: prediction } = useOpenCodePrediction()
+  const { data: anomaly } = useOpenCodeAnomaly()
+  const { data: recentAlerts } = useAlertsList(5)
+  const isOnline = useHealth()
+  const [alertModalVisible, setAlertModalVisible] = useState(false)
 
   const chartData = (usage ?? []).map((d) => ({
     date: new Date(d.bucketStart).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }),
@@ -43,18 +50,19 @@ export default function DashboardScreen() {
               LLM Token 用量概览
             </Text>
           </View>
-          {unread && unread.count > 0 ? (
-            <TouchableOpacity activeOpacity={0.7} className="relative w-9 h-9 rounded-full bg-white dark:bg-surface-dark border border-line dark:border-line-dark items-center justify-center">
-              <Ionicons name="notifications-outline" size={18} color="#71717a" />
-              <View className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-status-bad items-center justify-center">
-                <Text className="text-[9px] font-bold text-white">{unread.count}</Text>
+          <View className="flex-row items-center gap-2">
+            <View className={`w-2 h-2 rounded-full ${isOnline ? 'bg-status-good' : 'bg-status-bad'}`} />
+            <TouchableOpacity onPress={() => setAlertModalVisible(true)} activeOpacity={0.7}>
+              <View className="relative w-9 h-9 rounded-full bg-white dark:bg-surface-dark border border-line dark:border-line-dark items-center justify-center">
+                <Ionicons name="notifications-outline" size={18} color="#71717a" />
+                {unread && unread.count > 0 && (
+                  <View className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-status-bad items-center justify-center">
+                    <Text className="text-[9px] font-bold text-white">{unread.count > 9 ? '9+' : unread.count}</Text>
+                  </View>
+                )}
               </View>
             </TouchableOpacity>
-          ) : (
-            <View className="w-9 h-9 rounded-full bg-white dark:bg-surface-dark border border-line dark:border-line-dark items-center justify-center">
-              <Ionicons name="notifications-outline" size={18} color="#71717a" />
-            </View>
-          )}
+          </View>
         </View>
 
         {/* ─── Summary Stat Cards ─── */}
@@ -129,7 +137,7 @@ export default function DashboardScreen() {
         </View>
 
         {/* ─── Server Status ─── */}
-        <View className="pb-8">
+        <View>
           <SectionHeader title="服务器状态" />
           {servers && servers.length > 0 ? (
             <View className="gap-2">
@@ -155,7 +163,89 @@ export default function DashboardScreen() {
             </Card>
           )}
         </View>
+
+        {/* ─── Usage Prediction ─── */}
+        {prediction && prediction.predicted && prediction.predicted.length > 0 && (
+          <View>
+            <SectionHeader title="用量预测" subtitle="未来7天" />
+            <View className="flex-row gap-3">
+              <StatCard
+                icon="trending-up-outline"
+                label="下周预估费用"
+                value={`¥${prediction.predicted.reduce((s: number, p: any) => s + (parseFloat(p.cost) || 0), 0).toFixed(0)}`}
+                sub=""
+              />
+              <StatCard
+                icon="flash-outline"
+                label="日均增长率"
+                value={`${prediction.trend?.costSlope ? prediction.trend.costSlope.toFixed(1) : '—'}%`}
+                sub=""
+              />
+            </View>
+          </View>
+        )}
+
+        {/* ─── Anomaly Detection ─── */}
+        {anomaly && (
+          <View>
+            <SectionHeader title="费用异常" />
+            <Card variant={anomaly.status === 'anomaly' ? 'default' : 'tinted'} className="flex-row items-center gap-3 px-4 py-3.5">
+              <Ionicons
+                name={anomaly.status === 'anomaly' ? 'alert-circle' : 'checkmark-circle'}
+                size={22}
+                color={anomaly.status === 'anomaly' ? '#ef4444' : '#10b981'}
+              />
+              <View className="flex-1">
+                <Text className="text-sm font-medium text-ink dark:text-ink-dark">
+                  今日费用 ¥{anomaly.todayCost?.toFixed(2) ?? '—'}
+                </Text>
+                <Text className="text-xs text-ink-muted dark:text-ink-muted-dark mt-0.5">
+                  较7日均值 {anomaly.ratio > 1 ? `高出 ${((anomaly.ratio - 1) * 100).toFixed(0)}%` : '正常'}
+                </Text>
+              </View>
+            </Card>
+          </View>
+        )}
+
+        <View className="h-8" />
       </ScrollView>
+
+      {/* ─── Alerts Modal ─── */}
+      <Modal visible={alertModalVisible} transparent animationType="slide" onRequestClose={() => setAlertModalVisible(false)}>
+        <View className="flex-1 bg-black/40 justify-end">
+          <View className="bg-white dark:bg-zinc-900 rounded-t-2xl max-h-[60%] p-5 gap-3">
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-base font-bold text-ink dark:text-ink-dark">通知</Text>
+              <TouchableOpacity onPress={() => setAlertModalVisible(false)}>
+                <Ionicons name="close" size={20} color="#71717a" />
+              </TouchableOpacity>
+            </View>
+
+            {recentAlerts && recentAlerts.length > 0 ? (
+              <ScrollView>
+                {recentAlerts.filter((a) => !a.acknowledged).map((alert) => (
+                  <View key={alert.id} className="flex-row items-start gap-3 py-2.5 border-b border-line/50 dark:border-line-dark/50">
+                    <Ionicons
+                      name={alert.severity === 'critical' ? 'alert-circle' : alert.severity === 'warning' ? 'warning' : 'information-circle'}
+                      size={18}
+                      color={alert.severity === 'critical' ? '#ef4444' : alert.severity === 'warning' ? '#f59e0b' : '#3b82f6'}
+                    />
+                    <View className="flex-1">
+                      <Text className="text-sm font-medium text-ink dark:text-ink-dark">{alert.title}</Text>
+                      <Text className="text-xs text-ink-muted dark:text-ink-muted-dark mt-0.5" numberOfLines={2}>{alert.message}</Text>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <View className="py-8 items-center">
+                <Ionicons name="notifications-off-outline" size={28} color="#71717a" />
+                <Text className="text-sm text-ink-muted dark:text-ink-muted-dark mt-2">暂无通知</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }

@@ -1,13 +1,15 @@
 import './global.css'
-import { useEffect } from 'react'
-import { Stack, usePathname } from 'expo-router'
+import { useEffect, useState } from 'react'
+import { Stack, usePathname, useSegments, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { View, ActivityIndicator, Text } from 'react-native'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import * as SplashScreen from 'expo-splash-screen'
 import { configureApi } from '@tf-dashboard/shared/api/client'
 import { api } from '@tf-dashboard/shared/api/client'
 import { useSettings } from '../src/store/settings'
+import { useAuth } from '../src/store/auth'
 import { trackPageView, trackApiCall, startTracking, stopTracking } from '../src/lib/tracking'
 
 const DEFAULT_API_URL = process.env.EXPO_PUBLIC_API_URL || ''
@@ -26,23 +28,49 @@ const queryClient = new QueryClient({
   },
 })
 
-export default function RootLayout() {
-  const pathname = usePathname()
-  const { apiUrl, apiKey, loaded, load } = useSettings()
-
-  useEffect(() => { load() }, [])
+/** Redirects unauthenticated users to /login and authenticated users away from it. */
+function useAuthGuard() {
+  const { token, isLoading } = useAuth()
+  const segments = useSegments()
+  const router = useRouter()
 
   useEffect(() => {
-    if (!loaded) return
+    if (isLoading) return
+
+    const inAuthGroup = segments[0] === 'login'
+
+    if (!token && !inAuthGroup) {
+      router.replace('/login')
+    } else if (token && inAuthGroup) {
+      router.replace('/')
+    }
+  }, [token, isLoading, segments])
+}
+
+export default function RootLayout() {
+  const pathname = usePathname()
+  const { apiUrl, apiKey, loaded: settingsLoaded, load: loadSettings } = useSettings()
+  const { isLoading: authLoading, load: loadAuth } = useAuth()
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    Promise.all([loadSettings(), loadAuth()]).then(() => setReady(true))
+  }, [])
+
+  useEffect(() => {
+    if (!settingsLoaded) return
     configureApi({
       baseURL: `${apiUrl}/api`,
       apiKeyProvider: async () => apiKey || null,
+      tokenProvider: async () => useAuth.getState().token || null,
     })
-  }, [apiUrl, apiKey, loaded])
+  }, [apiUrl, apiKey, settingsLoaded])
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync()
-  }, [loaded])
+    if (ready) SplashScreen.hideAsync()
+  }, [ready])
+
+  useAuthGuard()
 
   // ─── Tracking ──────────────────────────────────────
   useEffect(() => {
@@ -73,7 +101,6 @@ export default function RootLayout() {
         return Promise.reject(err)
       },
     )
-    // Also track request start time
     const reqId = api.interceptors.request.use((config) => {
       config.headers.set('X-Start-Time', Date.now())
       return config
@@ -84,12 +111,25 @@ export default function RootLayout() {
     }
   }, [])
 
+  // Show loading screen while auth is loading
+  if (!ready || (authLoading && !useAuth.getState().token)) {
+    return (
+      <SafeAreaProvider>
+        <View className="flex-1 bg-zinc-950 items-center justify-center">
+          <ActivityIndicator size="large" color="#10b981" />
+          <Text className="text-zinc-500 text-sm mt-3">加载中...</Text>
+        </View>
+      </SafeAreaProvider>
+    )
+  }
+
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="auto" />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="servers/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>
