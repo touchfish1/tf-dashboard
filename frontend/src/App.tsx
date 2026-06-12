@@ -90,21 +90,24 @@ export default function App() {
                 }
               />
 
-              {/* Protected routes */}
-              <Route element={<ProtectedLayout />}>
-                <Route element={<Layout />}>
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><DashboardPage /></Suspense>} />
-                  <Route path="/opencode" element={<Suspense fallback={<PageFallback />}><OpenCodePage /></Suspense>} />
-                  <Route path="/deepseek" element={<Suspense fallback={<PageFallback />}><DeepSeekPage /></Suspense>} />
-                  <Route path="/server" element={<Suspense fallback={<PageFallback />}><ServerPage /></Suspense>} />
-                  <Route path="/server/:id" element={<Suspense fallback={<PageFallback />}><ServerPage /></Suspense>} />
+              {/* Routes inside Layout (visible to all) */}
+              <Route element={<Layout />}>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><DashboardPage /></Suspense>} />
+                <Route path="/opencode" element={<Suspense fallback={<PageFallback />}><OpenCodePage /></Suspense>} />
+                <Route path="/deepseek" element={<Suspense fallback={<PageFallback />}><DeepSeekPage /></Suspense>} />
+                <Route path="/server" element={<Suspense fallback={<PageFallback />}><ServerPage /></Suspense>} />
+                <Route path="/server/:id" element={<Suspense fallback={<PageFallback />}><ServerPage /></Suspense>} />
+                <Route path="/audit" element={<Suspense fallback={<PageFallback />}><AuditLogPage /></Suspense>} />
+                <Route path="/alerts/rules" element={<Suspense fallback={<PageFallback />}><AlertRulesPage /></Suspense>} />
+                <Route path="/reports" element={<Suspense fallback={<PageFallback />}><ReportsPage /></Suspense>} />
+
+                {/* Settings — requires login */}
+                <Route element={<ProtectedLayout />}>
                   <Route path="/settings" element={<Suspense fallback={<PageFallback />}><SettingsPage /></Suspense>} />
-                  <Route path="/audit" element={<Suspense fallback={<PageFallback />}><AuditLogPage /></Suspense>} />
-                  <Route path="/alerts/rules" element={<Suspense fallback={<PageFallback />}><AlertRulesPage /></Suspense>} />
-                  <Route path="/reports" element={<Suspense fallback={<PageFallback />}><ReportsPage /></Suspense>} />
-                  <Route path="*" element={<NotFound />} />
                 </Route>
+
+                <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>
           </ErrorBoundary>

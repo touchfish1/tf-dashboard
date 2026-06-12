@@ -8,16 +8,41 @@ import {
 } from "react";
 import type { AuthUser, LoginResponse } from "./types";
 
-// ─── Module-level token storage ────────────────
+// ─── Token persistence ──────────────────────────
+// sessionStorage survives page refresh (F5) but is cleared when tab closes.
+// The httpOnly refresh_token cookie is used as fallback when token expires.
 
-let _accessToken: string | null = null;
+const TOKEN_KEY = "tf_at";
+
+function loadToken(): string | null {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveToken(token: string | null) {
+  _accessToken = token;
+  try {
+    if (token) {
+      sessionStorage.setItem(TOKEN_KEY, token);
+    } else {
+      sessionStorage.removeItem(TOKEN_KEY);
+    }
+  } catch {
+    // storage unavailable — token lives in memory only
+  }
+}
+
+let _accessToken: string | null = loadToken();
 
 export function getAccessToken(): string | null {
   return _accessToken;
 }
 
 export function setAccessToken(token: string | null) {
-  _accessToken = token;
+  saveToken(token);
 }
 
 // ─── Auth context ──────────────────────────────
@@ -44,20 +69,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // On mount: try to restore session via GET /api/auth/me
+  // On mount: restore session from sessionStorage token or refresh cookie
   useEffect(() => {
     let cancelled = false;
     async function restore() {
       try {
-        const res = await fetch("/api/auth/me", {
+        if (_accessToken) {
+          // Token from sessionStorage — try /me directly (fast path)
+          const meRes = await fetch("/api/auth/me", {
+            credentials: "include",
+            headers: { Authorization: `Bearer ${_accessToken}` },
+          });
+          if (cancelled) return;
+          if (meRes.ok) {
+            const data: AuthUser = await meRes.json();
+            setUser(data);
+            if (!cancelled) setIsLoading(false);
+            return;
+          }
+          // Token expired — clear it and fall through to refresh
+          saveToken(null);
+        }
+
+        // Fallback: try httpOnly refresh_token cookie
+        const refreshRes = await fetch("/api/auth/refresh", {
+          method: "POST",
           credentials: "include",
         });
         if (cancelled) return;
-        if (res.ok) {
-          const data: AuthUser = await res.json();
-          setUser(data);
+        if (refreshRes.ok) {
+          const { accessToken } = await refreshRes.json();
+          saveToken(accessToken);
+          const meRes = await fetch("/api/auth/me", {
+            credentials: "include",
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (cancelled) return;
+          if (meRes.ok) {
+            const data: AuthUser = await meRes.json();
+            setUser(data);
+          }
         }
-        // 401 means no session — that's fine, user stays null
       } catch {
         // Network error — user stays null
       } finally {
@@ -90,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const data: LoginResponse = await res.json();
-    _accessToken = data.accessToken;
+    saveToken(data.accessToken);
     setUser(data.user);
   }, []);
 
@@ -106,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Best-effort; clear local state regardless
     }
-    _accessToken = null;
+    saveToken(null);
     setUser(null);
   }, []);
 
