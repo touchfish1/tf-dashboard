@@ -8,7 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { trackAction } from "../lib/tracking";
 import { linksApi, serversApi, settingsApi } from "../api";
-import type { NavLink, Server } from "../types";
+import type { NavLink, Server, NotificationChannel } from "../types";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,20 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { useToast } from "@/components/Toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -72,12 +86,42 @@ export default function SettingsPage() {
   const [bgUploading, setBgUploading] = useState(false);
   const [monthlyBudgetInput, setMonthlyBudgetInput] = useState("");
 
+  // Notification channels state
+  const [channels, setChannels] = useState<NotificationChannel[]>([]);
+  const [channelsLoading, setChannelsLoading] = useState(true);
+  const [channelsError, setChannelsError] = useState<string | null>(null);
+  const [channelDialogOpen, setChannelDialogOpen] = useState(false);
+  const [channelSaving, setChannelSaving] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<NotificationChannel | null>(null);
+  const [channelFormName, setChannelFormName] = useState("");
+  const [channelFormType, setChannelFormType] = useState<NotificationChannel["type"]>("slack");
+  const [channelFormUrl, setChannelFormUrl] = useState("");
+  const [channelTesting, setChannelTesting] = useState(false);
+
+  const CHANNEL_TYPE_LABEL: Record<NotificationChannel["type"], string> = {
+    slack: "Slack",
+    feishu: "飞书",
+    dingtalk: "钉钉",
+    wecom: "企业微信",
+    webhook_generic: "通用 Webhook",
+  };
+
+  // Report schedule state
+  const [reportEnabled, setReportEnabled] = useState(false);
+  const [reportDailyTime, setReportDailyTime] = useState("08:00");
+  const [reportWeeklyTime, setReportWeeklyTime] = useState("09:00");
+  const [reportWeeklyDay, setReportWeeklyDay] = useState("1");
+  const [reportChannels, setReportChannels] = useState("");
+  const [reportScheduleSaving, setReportScheduleSaving] = useState(false);
+
   useEffect(() => {
     loadServers();
     loadLinks();
     loadDsKey();
     loadOcConfig();
     loadBg();
+    loadChannels();
+    loadReportSchedule();
     settingsApi.get("monthly_budget").then((r) => setMonthlyBudgetInput(r.value || "")).catch(() => {});
   }, []);
 
@@ -182,6 +226,165 @@ export default function SettingsPage() {
       }
     } catch { toast("error", "上传失败"); }
     finally { setBgUploading(false); }
+  };
+
+  // ── Notification Channels ──────────────────────
+
+  const loadChannels = async () => {
+    setChannelsLoading(true);
+    setChannelsError(null);
+    try {
+      const { value } = await settingsApi.get("notification_channels");
+      if (value) {
+        setChannels(JSON.parse(value) as NotificationChannel[]);
+      } else {
+        setChannels([]);
+      }
+    } catch (e) {
+      setChannelsError(e instanceof Error ? e.message : "加载通知渠道失败");
+    } finally {
+      setChannelsLoading(false);
+    }
+  };
+
+  const openChannelAdd = () => {
+    setEditingChannel(null);
+    setChannelFormName("");
+    setChannelFormType("slack");
+    setChannelFormUrl("");
+    setChannelDialogOpen(true);
+  };
+
+  const openChannelEdit = (ch: NotificationChannel) => {
+    setEditingChannel(ch);
+    setChannelFormName(ch.name);
+    setChannelFormType(ch.type);
+    setChannelFormUrl(ch.url);
+    setChannelDialogOpen(true);
+  };
+
+  const closeChannelDialog = () => {
+    setChannelDialogOpen(false);
+    setEditingChannel(null);
+    setChannelFormName("");
+    setChannelFormType("slack");
+    setChannelFormUrl("");
+  };
+
+  const handleSaveChannel = async () => {
+    if (!channelFormName.trim() || !channelFormUrl.trim()) {
+      toast("error", "请填写完整的渠道信息");
+      return;
+    }
+    trackAction("通知渠道", editingChannel ? "编辑渠道" : "添加渠道", channelFormName.trim());
+    setChannelSaving(true);
+    try {
+      const newChannel: NotificationChannel = {
+        name: channelFormName.trim(),
+        type: channelFormType,
+        url: channelFormUrl.trim(),
+      };
+      let updated: NotificationChannel[];
+      if (editingChannel) {
+        updated = channels.map((c) =>
+          c.name === editingChannel.name && c.type === editingChannel.type ? newChannel : c
+        );
+      } else {
+        updated = [...channels, newChannel];
+      }
+      await settingsApi.set("notification_channels", JSON.stringify(updated));
+      setChannels(updated);
+      closeChannelDialog();
+      toast("success", editingChannel ? "渠道已更新" : "渠道已添加");
+    } catch (e) {
+      toast("error", e instanceof Error ? e.message : "保存失败");
+    } finally {
+      setChannelSaving(false);
+    }
+  };
+
+  const handleDeleteChannel = async (ch: NotificationChannel) => {
+    if (!confirm(`确定要删除通知渠道「${ch.name}」吗？`)) return;
+    trackAction("通知渠道", "删除渠道", ch.name);
+    try {
+      const updated = channels.filter(
+        (c) => !(c.name === ch.name && c.type === ch.type)
+      );
+      await settingsApi.set("notification_channels", JSON.stringify(updated));
+      setChannels(updated);
+      toast("success", "渠道已删除");
+    } catch (e) {
+      toast("error", e instanceof Error ? e.message : "删除失败");
+    }
+  };
+
+  // ── Report Schedule ────────────────────────────
+
+  const loadReportSchedule = async () => {
+    try {
+      const { value } = await settingsApi.get("report_schedule");
+      if (value) {
+        const cfg = JSON.parse(value);
+        setReportEnabled(cfg.enabled ?? false);
+        if (cfg.daily) {
+          const { time } = cronToTime(cfg.daily);
+          setReportDailyTime(time);
+        }
+        if (cfg.weekly) {
+          const { time, day } = cronToTime(cfg.weekly);
+          setReportWeeklyTime(time);
+          if (day) setReportWeeklyDay(String(day));
+        }
+        if (cfg.channels) setReportChannels(cfg.channels.join(", "));
+      }
+    } catch { /* silent */ }
+  };
+
+  const handleSaveReportSchedule = async () => {
+    trackAction("设置", "保存报告设置");
+    setReportScheduleSaving(true);
+    try {
+      await settingsApi.set("report_schedule", JSON.stringify({
+        enabled: reportEnabled,
+        daily: timeToCron(reportDailyTime),
+        weekly: timeToCron(reportWeeklyTime, parseInt(reportWeeklyDay)),
+        channels: reportChannels.split(",").map(s => s.trim()).filter(Boolean),
+      }));
+      toast("success", "报告设置已保存");
+    } catch {
+      toast("error", "保存失败");
+    } finally {
+      setReportScheduleSaving(false);
+    }
+  };
+
+  const handleTestChannel = async () => {
+    if (!channelFormUrl.trim()) {
+      toast("error", "请先填写 Webhook URL");
+      return;
+    }
+    trackAction("通知渠道", "测试发送", channelFormUrl.trim());
+    setChannelTesting(true);
+    try {
+      const res = await fetch(channelFormUrl.trim(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: "这是一条来自 tf-dashboard 的测试通知",
+          title: "测试通知",
+          msgtype: "text",
+        }),
+      });
+      if (res.ok) {
+        toast("success", "测试消息已发送");
+      } else {
+        toast("error", `发送失败 (HTTP ${res.status})`);
+      }
+    } catch {
+      toast("error", "发送失败，请检查 URL 是否正确");
+    } finally {
+      setChannelTesting(false);
+    }
   };
 
   const loadServers = async () => {
@@ -790,7 +993,233 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* ── Section 5: About ────────────────────────── */}
+      {/* ── Section 5: Notification Channels ───────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>通知渠道</CardTitle>
+          <Button variant="outline" size="sm" onClick={openChannelAdd}>
+            <Plus size={14} weight="bold" />
+            添加渠道
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {channelsLoading ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">加载中...</div>
+          ) : channelsError ? (
+            <div className="p-8 text-center text-sm text-destructive">{channelsError}</div>
+          ) : channels.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">暂无通知渠道</div>
+          ) : (
+            <div className="space-y-2">
+              {channels.map((ch, idx) => (
+                <div
+                  key={`${ch.type}-${ch.name}-${idx}`}
+                  className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-muted/30"
+                >
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">
+                        {ch.name}
+                      </span>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {CHANNEL_TYPE_LABEL[ch.type] || ch.type}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate font-mono">
+                      {ch.url}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => openChannelEdit(ch)}
+                      title="编辑"
+                    >
+                      <NotePencil size={16} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => handleDeleteChannel(ch)}
+                      title="删除"
+                      className="text-destructive hover:text-destructive/80"
+                    >
+                      <TrashSimple size={16} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Channel Dialog ─────────────────────────── */}
+      <Dialog open={channelDialogOpen} onOpenChange={setChannelDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingChannel ? "编辑通知渠道" : "添加通知渠道"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>渠道名称</Label>
+              <Input
+                value={channelFormName}
+                onChange={(e) => setChannelFormName(e.target.value)}
+                placeholder="例如: 运维群"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>渠道类型</Label>
+              <Select
+                value={channelFormType}
+                onValueChange={(v) => setChannelFormType(v as NotificationChannel["type"])}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(CHANNEL_TYPE_LABEL) as NotificationChannel["type"][]).map(
+                    (key) => (
+                      <SelectItem key={key} value={key}>
+                        {CHANNEL_TYPE_LABEL[key]}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Webhook URL</Label>
+              <Input
+                value={channelFormUrl}
+                onChange={(e) => setChannelFormUrl(e.target.value)}
+                placeholder="https://hooks.slack.com/services/..."
+                className="font-mono"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleTestChannel}
+              disabled={channelTesting || !channelFormUrl.trim()}
+              size="sm"
+            >
+              {channelTesting ? "发送中..." : "测试发送"}
+            </Button>
+            <div className="flex-1" />
+            <Button variant="ghost" onClick={closeChannelDialog}>
+              取消
+            </Button>
+            <Button
+              onClick={handleSaveChannel}
+              disabled={channelSaving || !channelFormName.trim() || !channelFormUrl.trim()}
+            >
+              {channelSaving ? "保存中..." : editingChannel ? "更新" : "保存"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Section 6: Report Schedule ──────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>定期报告</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Enable toggle */}
+          <div className="space-y-1.5">
+            <Label>启用报告</Label>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={reportEnabled ? "default" : "outline"}
+                size="sm"
+                onClick={() => setReportEnabled(true)}
+              >
+                启用
+              </Button>
+              <Button
+                variant={!reportEnabled ? "default" : "outline"}
+                size="sm"
+                onClick={() => setReportEnabled(false)}
+              >
+                禁用
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Daily report time */}
+          <div className="space-y-1.5">
+            <Label>日报发送时间</Label>
+            <Input
+              type="time"
+              value={reportDailyTime}
+              onChange={(e) => setReportDailyTime(e.target.value)}
+              className="w-32"
+            />
+          </div>
+
+          {/* Weekly report time */}
+          <div className="space-y-1.5">
+            <Label>周报发送时间</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                type="time"
+                value={reportWeeklyTime}
+                onChange={(e) => setReportWeeklyTime(e.target.value)}
+                className="w-32"
+              />
+              <Select
+                value={reportWeeklyDay}
+                onValueChange={(v) => setReportWeeklyDay(v ?? "1")}
+              >
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5, 6, 7].map((d) => (
+                    <SelectItem key={d} value={String(d)}>
+                      {DAY_LABELS[d]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Notification channels */}
+          <div className="space-y-1.5">
+            <Label>通知渠道</Label>
+            <Input
+              value={reportChannels}
+              onChange={(e) => setReportChannels(e.target.value)}
+              placeholder={'渠道名以逗号分隔，在「通知渠道」中配置'}
+            />
+            <p className="text-xs text-muted-foreground">
+              渠道名以逗号分隔，在「通知渠道」中配置
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 pt-2">
+            <Button
+              onClick={handleSaveReportSchedule}
+              disabled={reportScheduleSaving}
+            >
+              {reportScheduleSaving ? "保存中..." : "保存"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Section 7: About ────────────────────────── */}
       <Card>
         <CardHeader>
           <CardTitle>About</CardTitle>
@@ -866,4 +1295,27 @@ function IntervalField({ label, settingKey, placeholder }: { label: string; sett
       </div>
     </div>
   );
+}
+
+// ─── Cron Helpers ──────────────────────────────────
+
+const DAY_LABELS: Record<number, string> = {
+  1: "周一", 2: "周二", 3: "周三", 4: "周四", 5: "周五", 6: "周六", 7: "周日",
+};
+
+function timeToCron(time: string, day?: number): string {
+  const [h, m] = time.split(":");
+  if (day !== undefined) {
+    return `${m} ${h} * * ${day}`;
+  }
+  return `${m} ${h} * * *`;
+}
+
+function cronToTime(cron: string): { time: string; day?: number } {
+  const parts = cron.split(" ");
+  const time = `${parts[1]}:${parts[0]}`;
+  if (parts[4] !== "*") {
+    return { time, day: parseInt(parts[4]) };
+  }
+  return { time };
 }

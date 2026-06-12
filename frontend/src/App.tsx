@@ -1,8 +1,9 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/components/Toast";
+import { AuthProvider, useAuth } from "./auth";
 import Layout from "./Layout";
 
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
@@ -11,6 +12,9 @@ const DeepSeekPage = lazy(() => import("./pages/DeepSeekPage"));
 const ServerPage = lazy(() => import("./pages/ServerPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
+const AlertRulesPage = lazy(() => import("./pages/AlertRulesPage"));
+const ReportsPage = lazy(() => import("./pages/ReportsPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
 
 function PageFallback() {
   return (
@@ -45,25 +49,66 @@ function NotFound() {
   );
 }
 
+/** Wraps routes that require authentication. Redirects to /login if not authed. */
+function ProtectedLayout() {
+  const { user, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <span className="text-xs text-muted-foreground">加载中...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    const redirect = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirect=${redirect}`} replace />;
+  }
+
+  return <Outlet />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
-        <ErrorBoundary>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><DashboardPage /></Suspense>} />
-              <Route path="/opencode" element={<Suspense fallback={<PageFallback />}><OpenCodePage /></Suspense>} />
-              <Route path="/deepseek" element={<Suspense fallback={<PageFallback />}><DeepSeekPage /></Suspense>} />
-              <Route path="/server" element={<Suspense fallback={<PageFallback />}><ServerPage /></Suspense>} />
-              <Route path="/server/:id" element={<Suspense fallback={<PageFallback />}><ServerPage /></Suspense>} />
-              <Route path="/settings" element={<Suspense fallback={<PageFallback />}><SettingsPage /></Suspense>} />
-              <Route path="/audit" element={<Suspense fallback={<PageFallback />}><AuditLogPage /></Suspense>} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
-        </ErrorBoundary>
+        <AuthProvider>
+          <ErrorBoundary>
+            <Routes>
+              {/* Public routes */}
+              <Route
+                path="/login"
+                element={
+                  <Suspense fallback={<PageFallback />}>
+                    <LoginPage />
+                  </Suspense>
+                }
+              />
+
+              {/* Protected routes */}
+              <Route element={<ProtectedLayout />}>
+                <Route element={<Layout />}>
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><DashboardPage /></Suspense>} />
+                  <Route path="/opencode" element={<Suspense fallback={<PageFallback />}><OpenCodePage /></Suspense>} />
+                  <Route path="/deepseek" element={<Suspense fallback={<PageFallback />}><DeepSeekPage /></Suspense>} />
+                  <Route path="/server" element={<Suspense fallback={<PageFallback />}><ServerPage /></Suspense>} />
+                  <Route path="/server/:id" element={<Suspense fallback={<PageFallback />}><ServerPage /></Suspense>} />
+                  <Route path="/settings" element={<Suspense fallback={<PageFallback />}><SettingsPage /></Suspense>} />
+                  <Route path="/audit" element={<Suspense fallback={<PageFallback />}><AuditLogPage /></Suspense>} />
+                  <Route path="/alerts/rules" element={<Suspense fallback={<PageFallback />}><AlertRulesPage /></Suspense>} />
+                  <Route path="/reports" element={<Suspense fallback={<PageFallback />}><ReportsPage /></Suspense>} />
+                  <Route path="*" element={<NotFound />} />
+                </Route>
+              </Route>
+            </Routes>
+          </ErrorBoundary>
+        </AuthProvider>
       </ToastProvider>
     </BrowserRouter>
   );

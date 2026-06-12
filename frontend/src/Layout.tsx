@@ -12,12 +12,15 @@ import {
   Check,
   WarningCircle as WarningIcon,
   ClipboardText,
+  FileText,
+  SignOut,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Server as ServerType, Alert } from "./types";
 import { serversApi, alertsApi } from "./api";
+import { useAuth, getAccessToken } from "./auth";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import { trackPageView, trackPerformance, trackAction, startSessionTracking, stopSessionTracking, initViewportTracking, initClickTracking, initFormTracking, initScrollTracking, initVisibilityTracking, initOutboundTracking, startBatchSender, stopBatchSender } from "./lib/tracking";
 
@@ -27,8 +30,63 @@ const NAV = [
   { to: "/deepseek", label: "DeepSeek", icon: Robot },
   { to: "/server", label: "服务器", icon: ComputerTower },
   { to: "/audit", label: "审计", icon: ClipboardText },
+  { to: "/alerts/rules", label: "告警", icon: Bell },
+  { to: "/reports", label: "报告", icon: FileText },
   { to: "/settings", label: "设置", icon: GearSix },
 ];
+
+function UserMenu() {
+  const { user, logout } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  if (!user) return null;
+
+  const initial = user.displayName.charAt(0).toUpperCase();
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-full"
+      >
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+          {initial}
+        </div>
+      </Button>
+      {open && (
+        <div className="absolute top-full right-0 mt-1 w-48 rounded-lg border border-border bg-popover py-2 shadow-lg z-[60]">
+          <div className="px-3 pb-1.5">
+            <p className="text-xs font-medium text-foreground truncate">
+              {user.displayName}
+            </p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {user.email}
+            </p>
+          </div>
+          <div className="px-3 pb-2">
+            <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+              {user.role === "admin" ? "管理员" : "查看者"}
+            </span>
+          </div>
+          <div className="border-t border-border" />
+          <button
+            onClick={() => {
+              logout();
+              setOpen(false);
+            }}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <SignOut size={14} />
+            退出登录
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Layout() {
   const loc = useLocation();
@@ -37,8 +95,10 @@ export default function Layout() {
   const [alertsList, setAlertsList] = useState<Alert[]>([]);
   const [alertOpen, setAlertOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [userOpen, setUserOpen] = useState(false);
   const dd = useRef<HTMLDivElement>(null);
   const alertRef = useRef<HTMLDivElement>(null);
+  const userRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     serversApi.list().then(setServers).catch(() => {});
@@ -75,18 +135,72 @@ export default function Layout() {
     const cb = (e: MouseEvent) => {
       if (dd.current && !dd.current.contains(e.target as Node)) setSrvOpen(false);
       if (alertRef.current && !alertRef.current.contains(e.target as Node)) setAlertOpen(false);
+      if (userRef.current && !userRef.current.contains(e.target as Node)) setUserOpen(false);
     };
     document.addEventListener("mousedown", cb);
     return () => document.removeEventListener("mousedown", cb);
   }, []);
   useEffect(() => {
-    const fetch = () => {
+    // Initial fetch for immediate alert state
+    const fetchAlerts = () => {
       alertsApi.unread().then((r) => setUnread(r.count)).catch(() => {});
       alertsApi.list(10).then(setAlertsList).catch(() => {});
     };
-    fetch();
-    const iv = setInterval(fetch, 30000);
-    return () => clearInterval(iv);
+    fetchAlerts();
+
+    // SSE connection for live real-time updates
+    let es: EventSource | null = null;
+    let fallbackPollId: ReturnType<typeof setInterval> | null = null;
+    let reconnectFailures = 0;
+
+    function initSSE() {
+      const token = getAccessToken();
+      const url = token ? `/api/sse?token=${token}` : "/api/sse";
+      es = new EventSource(url);
+
+      es.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (
+            [
+              "server_offline",
+              "deepseek_balance",
+              "opencode_etl_error",
+              "opencode_cost_anomaly",
+              "server_metrics",
+              "opencode_usage_updated",
+              "monthly_budget_check",
+            ].includes(data.type)
+          ) {
+            fetchAlerts();
+          }
+        } catch {
+          /* ignore parse errors */
+        }
+      };
+
+      es.onerror = () => {
+        es?.close();
+        reconnectFailures++;
+        if (reconnectFailures >= 3) {
+          // Fall back to polling when SSE repeatedly fails
+          if (!fallbackPollId) {
+            fallbackPollId = setInterval(fetchAlerts, 60000);
+          }
+        }
+      };
+
+      es.onopen = () => {
+        reconnectFailures = 0; // Reset on successful connection
+      };
+    }
+
+    initSSE();
+
+    return () => {
+      es?.close();
+      if (fallbackPollId) clearInterval(fallbackPollId);
+    };
   }, []);
 
   const isSrv = loc.pathname.startsWith("/server");
@@ -138,6 +252,9 @@ export default function Layout() {
               v0.1.0
             </span>
           </div>
+
+          {/* User menu */}
+          <UserMenu />
 
           {/* Server button + dropdown — OUTSIDE scrollable area */}
           <div className="relative shrink-0 ml-2" ref={dd}>
