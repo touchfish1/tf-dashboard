@@ -93,7 +93,10 @@ export default function DashboardPage() {
       ]);
       if (sr.status === "fulfilled") setSummary(sr.value); else errs.push("用量汇总加载失败");
       if (ur.status === "fulfilled") setUsage(ur.value); else errs.push("用量明细加载失败");
-      if (bmr.status === "fulfilled") setByModel(bmr.value); else errs.push("模型费用加载失败");
+      if (bmr.status === "fulfilled") {
+        setByModel(bmr.value);
+        setMonthlyCost(bmr.value.reduce((s, m) => s + parseFloat(m.cost), 0));
+      } else errs.push("模型费用加载失败");
       if (balr.status === "fulfilled") setBalance(balr.value); else errs.push("DeepSeek余额加载失败");
       if (slr.status === "fulfilled") setServers(slr.value); else errs.push("服务器列表加载失败");
       if (lkr.status === "fulfilled") setLinks(lkr.value); else errs.push("导航链接加载失败");
@@ -103,7 +106,8 @@ export default function DashboardPage() {
         const serversData = slr.status === "fulfilled" ? slr.value : [];
         if (serversData.length > 0) {
           const m: Record<number, ServerSummary> = {};
-          await Promise.allSettled(serversData.map(srv =>
+          // Fetch summaries for first 5 servers only; cache in api.ts handles 30s TTL
+          await Promise.allSettled(serversData.slice(0, 5).map(srv =>
             serversApi.summary(srv.id, 1).then(r => { m[srv.id] = r; })
           ));
           if (!cancel) setSs(m);
@@ -124,14 +128,6 @@ export default function DashboardPage() {
   useEffect(() => {
     dashboardConfigApi.get().then(setCfg);
     settingsApi.get("monthly_budget").then((r) => setMonthlyBudget(parseFloat(r.value || "0"))).catch(() => {});
-  }, []);
-
-  // ── Calculate monthly cost ──
-  useEffect(() => {
-    opencodeApi.usage(30).then((rows) => {
-      const total = rows.reduce((s, r) => s + parseFloat(r.cost), 0);
-      setMonthlyCost(total);
-    }).catch(() => {});
   }, []);
 
   const sectionVisible = (id: string): boolean => {

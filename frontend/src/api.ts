@@ -115,6 +115,10 @@ const put = <T>(path: string, body: unknown) => apiFetch<T>("PUT", path, body);
 const del = (path: string) => apiFetch<void>("DELETE", path);
 const patchReq = <T>(path: string, body: unknown) => apiFetch<T>("PATCH", path, body);
 
+// ─── Client-side cache for summary responses ──────
+const summaryCache = new Map<string, { data: ServerSummary; expiry: number }>();
+const SUMMARY_CACHE_TTL = 30_000; // 30 seconds
+
 // ─── Servers ─────────────────────────────────────
 export const serversApi = {
   list: () => get<Server[]>("/api/servers"),
@@ -126,8 +130,17 @@ export const serversApi = {
   remove: (id: number) => del(`/servers/${id}`),
   metrics: (id: number, limit = 100) =>
     get<ServerMetrics[]>(`/api/servers/${id}/metrics`, { limit: String(limit) }),
-  summary: (id: number, days = 1) =>
-    get<ServerSummary>(`/api/servers/${id}/summary`, { days: String(days) }),
+  summary: (id: number, days = 1) => {
+    const key = `summary:${id}:${days}`;
+    const cached = summaryCache.get(key);
+    if (cached && cached.expiry > Date.now()) {
+      return Promise.resolve(cached.data) as Promise<ServerSummary>;
+    }
+    return get<ServerSummary>(`/api/servers/${id}/summary`, { days: String(days) }).then(data => {
+      summaryCache.set(key, { data, expiry: Date.now() + SUMMARY_CACHE_TTL });
+      return data;
+    });
+  },
 };
 
 // ─── OpenCode ────────────────────────────────────

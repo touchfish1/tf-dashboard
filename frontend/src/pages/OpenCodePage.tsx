@@ -335,6 +335,15 @@ const tooltipLabelStyle: React.CSSProperties = {
 
 // ─── Main Component ──────────────────────────────
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export default function OpenCodePage() {
   const [days, setDays] = useState<TimeRange>(7);
   const [data, setData] = useState<OpenCodeUsage[]>([]);
@@ -347,6 +356,7 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [sortDir, setSortDir] = useState<SortDir | null>(null);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
 
   const PAGE_SIZE = 10;
@@ -356,11 +366,11 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
     setError(null);
     setPage(0);
     opencodeApi
-      .usageRaw(days, 200, search)
+      .usageRaw(days, 200, debouncedSearch)
       .then((res) => { setData(res); setLastUpdate(new Date()); })
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [days, retry, search]);
+  }, [days, retry, debouncedSearch]);
 
   // ── Derived data ─────────────────────────────
 
