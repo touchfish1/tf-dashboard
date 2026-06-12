@@ -65,19 +65,28 @@ router.get("/:id/metrics", async (c) => {
 router.get("/:id/summary", async (c) => {
   const id = parseParam(c, "id", IdParam) as number;
   const days = parseInt(c.req.query("days") || "1", 10);
-  const [row] = await db.select({
-    avgCpu: sql<string>`ROUND(AVG(cpu_percent::numeric),1)`,
-    maxCpu: sql<string>`ROUND(MAX(cpu_percent::numeric),1)`,
-    avgMem: sql<string>`ROUND(AVG(memory_percent::numeric),1)`,
-    maxMem: sql<string>`ROUND(MAX(memory_percent::numeric),1)`,
-    latestCpu: sql<string>`ROUND((SELECT cpu_percent::numeric FROM server_metrics WHERE server_id=${id} ORDER BY collected_at DESC LIMIT 1),1)`,
-    latestMem: sql<string>`ROUND((SELECT memory_percent::numeric FROM server_metrics WHERE server_id=${id} ORDER BY collected_at DESC LIMIT 1),1)`,
-    latestDisk: sql<string>`ROUND((SELECT disk_used_gb::numeric FROM server_metrics WHERE server_id=${id} ORDER BY collected_at DESC LIMIT 1),1)`,
-    totalDisk: sql<string>`ROUND((SELECT disk_total_gb::numeric FROM server_metrics WHERE server_id=${id} ORDER BY collected_at DESC LIMIT 1),1)`,
-    uptime: sql<number>`(SELECT uptime_seconds FROM server_metrics WHERE server_id=${id} ORDER BY collected_at DESC LIMIT 1)`,
-  })
-    .from(serverMetrics)
-    .where(sql`server_id = ${id} AND collected_at >= NOW() - INTERVAL '1 day' * ${days}`);
+  // Use CTE to replace 6 correlated subqueries with a single latest-row scan
+  const [row] = await db.execute(sql`
+    WITH latest AS (
+      SELECT cpu_percent, memory_percent, disk_used_gb, disk_total_gb, uptime_seconds
+      FROM server_metrics
+      WHERE server_id = ${id}
+      ORDER BY collected_at DESC
+      LIMIT 1
+    )
+    SELECT
+      ROUND(AVG(cpu_percent::numeric),1)::text AS avg_cpu,
+      ROUND(MAX(cpu_percent::numeric),1)::text AS max_cpu,
+      ROUND(AVG(memory_percent::numeric),1)::text AS avg_mem,
+      ROUND(MAX(memory_percent::numeric),1)::text AS max_mem,
+      (SELECT ROUND(cpu_percent::numeric,1)::text FROM latest) AS latest_cpu,
+      (SELECT ROUND(memory_percent::numeric,1)::text FROM latest) AS latest_mem,
+      (SELECT ROUND(disk_used_gb::numeric,1)::text FROM latest) AS latest_disk,
+      (SELECT ROUND(disk_total_gb::numeric,1)::text FROM latest) AS total_disk,
+      (SELECT uptime_seconds FROM latest) AS uptime
+    FROM server_metrics
+    WHERE server_id = ${id} AND collected_at >= NOW() - INTERVAL '1 day' * ${days}
+  `);
   return c.json(row);
 });
 

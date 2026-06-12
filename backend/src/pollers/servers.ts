@@ -36,6 +36,8 @@ export async function pollAllServers(): Promise<void> {
   try {
     const activeServers = await db.select().from(servers).where(eq(servers.isActive, true));
 
+    const batchValues: typeof serverMetrics.$inferInsert[] = [];
+
     await Promise.allSettled(activeServers.map(async (server) => {
       if (!isValidMetricsUrl(server.metricsUrl)) {
         logger.warn({ server: server.name, url: server.metricsUrl, event: "ssrf_blocked" }, "SSRF拦截");
@@ -52,7 +54,7 @@ export async function pollAllServers(): Promise<void> {
         const totalDiskGb = data.disk.reduce((sum, d) => sum + d.total_gb, 0);
         const usedDiskGb = data.disk.reduce((sum, d) => sum + d.used_gb, 0);
 
-        await db.insert(serverMetrics).values({
+        batchValues.push({
           serverId: server.id,
           cpuPercent: String(data.cpu.percent),
           cpuLoad1m: String(data.cpu.load_1m),
@@ -75,6 +77,11 @@ export async function pollAllServers(): Promise<void> {
         emit({ type: 'server_offline', serverId: server.id, serverName: server.name });
       }
     }));
+
+    // Batch insert all collected metrics
+    if (batchValues.length > 0) {
+      await db.insert(serverMetrics).values(batchValues);
+    }
     markPollerSuccess('servers');
   } catch (err) {
     logger.error({ err, event: "poller_failed" }, "获取服务器列表失败");

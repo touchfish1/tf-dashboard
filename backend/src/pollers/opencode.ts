@@ -148,6 +148,8 @@ export async function pollOpenCodeUsage(): Promise<void> {
 
     await aggregateAndStore(rows);
     markPollerSuccess('opencode');
+    const totalCost = rows.reduce((sum, r) => sum + r.cost, 0);
+    emit({ type: 'opencode_usage_updated', totalCost });
   } catch (err) {
     logger.error({ err, event: "etl_failed" }, "OpenCode ETL failed");
     emit({ type: 'opencode_etl_error', error: String(err) });

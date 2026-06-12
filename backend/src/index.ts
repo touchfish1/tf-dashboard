@@ -85,6 +85,9 @@ app.use('/api/opencode/by-model', cache(30));   // 30s TTL
 app.use('/api/opencode/predict', cache(300));   // 5min TTL
 app.use('/api/deepseek/balance', cache(15));    // 15s TTL
 app.use('/api/servers', cache(10));             // 10s TTL
+app.use('/api/servers/:id/metrics', cache(10)); // 10s TTL
+app.use('/api/servers/:id/summary', cache(15)); // 15s TTL
+app.use('/api/deepseek/history', cache(60));   // 60s TTL
 app.use('/api/links', cache(60));              // 60s TTL
 app.use('/api/settings', cache(30));            // 30s TTL
 
@@ -180,9 +183,7 @@ async function seedDefaultRules(): Promise<void> {
   ];
 
   try {
-    for (const rule of defaults) {
-      await db.insert(alertRules).values(rule as any);
-    }
+    await db.insert(alertRules).values(defaults as any[]);
     logger.info({ count: defaults.length, event: "seed_rules_created" }, `已创建 ${defaults.length} 条默认告警规则`);
   } catch (err) {
     logger.warn({ err, event: "seed_rules_failed" }, "创建默认告警规则失败（可能已存在）");
