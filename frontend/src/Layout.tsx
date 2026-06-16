@@ -5,6 +5,7 @@ import {
   Terminal,
   Robot,
   ComputerTower,
+  Users,
   GearSix,
   CaretDown,
   Plus,
@@ -14,9 +15,11 @@ import {
   ClipboardText,
   FileText,
   SignOut,
+  Gauge,
+  SunDim,
+  MoonStars,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Server as ServerType, Alert } from "./types";
 import { serversApi, alertsApi } from "./api";
@@ -29,11 +32,41 @@ const NAV = [
   { to: "/opencode", label: "OpenCode", icon: Terminal },
   { to: "/deepseek", label: "DeepSeek", icon: Robot },
   { to: "/server", label: "服务器", icon: ComputerTower },
+  { to: "/status", label: "状态", icon: Gauge },
   { to: "/audit", label: "审计", icon: ClipboardText },
   { to: "/alerts/rules", label: "告警", icon: Bell },
   { to: "/reports", label: "报告", icon: FileText },
-  { to: "/settings", label: "设置", icon: GearSix },
+  { to: "/users", label: "用户", icon: Users },
 ];
+
+function ThemeToggle() {
+  const [theme, setTheme] = useState<"paper" | "rubbing">(() => {
+    try {
+      const saved = localStorage.getItem("tf-theme");
+      if (saved === "paper" || saved === "rubbing") return saved;
+    } catch {}
+    return "paper";
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove("theme-paper", "theme-rubbing");
+    root.classList.add(`theme-${theme}`);
+    try { localStorage.setItem("tf-theme", theme); } catch {}
+  }, [theme]);
+
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme((t) => (t === "paper" ? "rubbing" : "paper"))}
+      className="flex items-center gap-1.5 px-2 py-1 text-xs transition-colors hover:text-foreground/80 text-foreground/50"
+      title={theme === "paper" ? "切换拓片主题" : "切换宣纸主题"}
+    >
+      {theme === "paper" ? <MoonStars size={14} /> : <SunDim size={14} />}
+      <span className="hidden sm:inline font-heading">{theme === "paper" ? "拓片" : "宣纸"}</span>
+    </button>
+  );
+}
 
 function UserMenu() {
   const { user, logout } = useAuth();
@@ -46,18 +79,16 @@ function UserMenu() {
 
   return (
     <div className="relative shrink-0" ref={ref}>
-      <Button
-        variant="ghost"
-        size="icon-sm"
+      <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
-        className="rounded-full"
+        className="flex h-7 w-7 items-center justify-center rounded-sm text-xs font-bold border border-border hover:bg-muted transition-colors"
+        style={{ fontFamily: '"Songti SC", "STSong", serif' }}
       >
-        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
-          {initial}
-        </div>
-      </Button>
+        {initial}
+      </button>
       {open && (
-        <div className="absolute top-full right-0 mt-1 w-48 rounded-lg border border-border bg-popover py-2 shadow-lg z-[60]">
+        <div className="absolute top-full right-0 mt-1 w-48 border border-border bg-popover py-2 z-[60] shadow-lg">
           <div className="px-3 pb-1.5">
             <p className="text-xs font-medium text-foreground truncate">
               {user.displayName}
@@ -67,11 +98,11 @@ function UserMenu() {
             </p>
           </div>
           <div className="px-3 pb-2">
-            <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+            <span className="inline-flex items-center border border-current px-2 py-0.5 text-[10px] text-primary">
               {user.role === "admin" ? "管理员" : "查看者"}
             </span>
           </div>
-          <div className="border-t border-border" />
+          <div className="border-t border-border mx-3" />
           <button
             onClick={() => {
               logout();
@@ -95,7 +126,6 @@ export default function Layout() {
   const [alertsList, setAlertsList] = useState<Alert[]>([]);
   const [alertOpen, setAlertOpen] = useState(false);
   const [unread, setUnread] = useState(0);
-  const [userOpen, setUserOpen] = useState(false);
   const dd = useRef<HTMLDivElement>(null);
   const alertRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
@@ -103,6 +133,7 @@ export default function Layout() {
   useEffect(() => {
     serversApi.list().then(setServers).catch(() => {});
   }, []);
+
   useEffect(() => {
     trackPageView(loc.pathname);
   }, [loc.pathname]);
@@ -119,7 +150,6 @@ export default function Layout() {
     return () => { stopSessionTracking(); stopBatchSender(); };
   }, []);
 
-  // Track page load performance
   useEffect(() => {
     if (typeof window !== "undefined" && "performance" in window) {
       const entries = performance.getEntriesByType("navigation");
@@ -135,13 +165,12 @@ export default function Layout() {
     const cb = (e: MouseEvent) => {
       if (dd.current && !dd.current.contains(e.target as Node)) setSrvOpen(false);
       if (alertRef.current && !alertRef.current.contains(e.target as Node)) setAlertOpen(false);
-      if (userRef.current && !userRef.current.contains(e.target as Node)) setUserOpen(false);
     };
     document.addEventListener("mousedown", cb);
     return () => document.removeEventListener("mousedown", cb);
   }, []);
+
   useEffect(() => {
-    // Only subscribe to alerts and SSE when user is logged in
     if (!getAccessToken()) return;
 
     const fetchAlerts = () => {
@@ -150,7 +179,6 @@ export default function Layout() {
     };
     fetchAlerts();
 
-    // SSE connection for live real-time updates
     let es: EventSource | null = null;
     let fallbackPollId: ReturnType<typeof setInterval> | null = null;
     let reconnectFailures = 0;
@@ -176,13 +204,10 @@ export default function Layout() {
           ) {
             fetchAlerts();
           }
-          // Broadcast data update events so active pages can refetch
           if (["opencode_usage_updated", "server_metrics", "deepseek_balance"].includes(data.type)) {
             window.dispatchEvent(new CustomEvent("tf:data-update", { detail: { type: data.type } }));
           }
-        } catch {
-          /* ignore parse errors */
-        }
+        } catch {}
       };
 
       es.onerror = () => {
@@ -217,136 +242,142 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background relative" style={{ zIndex: 1 }}>
       <ConnectionStatus />
-      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
-        <div className="flex items-center h-12 px-4 sm:px-6 max-w-[1400px] mx-auto">
-          {/* Scrollable nav area + logo */}
-          <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-none flex-1 min-w-0">
-            {/* Logo */}
-            <NavLink
-              to="/dashboard"
-              className="flex items-center gap-2 mr-3 sm:mr-4 shrink-0"
-            >
-              <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold bg-primary text-primary-foreground">
-                T
-              </div>
-              <span className="text-sm font-medium text-foreground hidden sm:inline">
-                tf-dashboard
-              </span>
-            </NavLink>
 
-            {/* Nav items (without server) */}
-            {NAV.filter(n => n.to !== "/server").map(({ to, label, icon: Icon }) => {
-              const active = loc.pathname === to;
-              return (
-                <NavLink key={to} to={to} className="shrink-0">
-                  <Button
-                    variant={active ? "secondary" : "ghost"}
-                    size="sm"
-                    className={cn("gap-0.5 sm:gap-1.5", active && "bg-muted")}
-                  >
-                    <Icon size={16} />
-                    <span className="hidden sm:inline">{label}</span>
-                  </Button>
-                </NavLink>
-              );
-            })}
-
-            <span className="text-[10px] sm:text-[11px] text-muted-foreground shrink-0 ml-1">
-              v0.1.0
-            </span>
+      {/* ═══ 侧栏 · Sidebar ═══ */}
+      <aside className="hidden md:flex flex-col w-48 shrink-0 border-r border-border bg-sidebar relative">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 px-4 h-12 border-b border-border/50 shrink-0">
+          <div className="flex items-center justify-center w-7 h-7 text-xs font-bold border border-primary text-primary" style={{ fontFamily: '"Songti SC", "STSong", serif' }}>
+            T
           </div>
+          <span className="text-sm font-heading text-foreground tracking-wide">tf-dashboard</span>
+        </div>
 
-          {/* User menu */}
-          <UserMenu />
-
-          {/* Server button + dropdown — OUTSIDE scrollable area */}
-          <div className="relative shrink-0 ml-2" ref={dd}>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSrvOpen((v) => !v)}
-              className={cn(
-                "gap-0.5 sm:gap-1.5",
-                isSrv && "bg-muted text-foreground"
-              )}
-            >
-              <ComputerTower size={16} />
-              <span className="hidden sm:inline">服务器</span>
-              <CaretDown
-                size={10}
+        {/* Nav */}
+        <nav className="flex-1 py-2 overflow-y-auto">
+          {NAV.map(({ to, label, icon: Icon }) => {
+            const active = loc.pathname === to || (to === "/server" && isSrv);
+            return (
+              <NavLink
+                key={to}
+                to={to}
                 className={cn(
-                  "transition-transform shrink-0",
-                  srvOpen && "rotate-180"
+                  "relative flex items-center gap-2.5 px-4 py-2 text-xs transition-colors",
+                  active
+                    ? "text-primary bg-muted/60"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                 )}
-              />
-            </Button>
-            {srvOpen && (
-              <div className="absolute top-full right-0 mt-1 w-44 rounded-lg border border-border bg-popover py-1 shadow-lg z-[60]">
-                {servers.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-muted-foreground">
-                    暂无服务器
-                  </div>
-                ) : (
-                  servers.map((s) => (
-                    <NavLink
-                      key={s.id}
-                      to={`/server/${s.id}`}
-                      onClick={() => setSrvOpen(false)}
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 text-xs transition-colors hover:bg-muted",
-                        loc.pathname === `/server/${s.id}`
-                          ? "text-foreground bg-muted"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "w-1.5 h-1.5 rounded-full shrink-0",
-                          s.isActive ? "bg-primary" : "bg-muted-foreground/40"
-                        )}
-                      />
-                      {s.name}
-                    </NavLink>
-                  ))
+              >
+                {active && (
+                  <span className="absolute left-0 top-[15%] bottom-[15%] w-[3px] bg-primary rounded-r-sm" />
                 )}
-                <div className="border-t border-border mt-1 pt-1">
-                  <NavLink
-                    to="/settings"
-                    onClick={() => setSrvOpen(false)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Plus size={12} /> 添加服务器
-                  </NavLink>
-                </div>
-              </div>
+                <Icon size={16} weight={active ? "fill" : "regular"} />
+                <span className="font-heading tracking-wide">{label}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
+
+        {/* Server dropdown in sidebar */}
+        <div ref={dd} className="border-t border-border/50">
+          <button
+            type="button"
+            onClick={() => setSrvOpen((v) => !v)}
+            className={cn(
+              "flex items-center gap-2.5 w-full px-4 py-2 text-xs transition-colors",
+              isSrv ? "text-primary bg-muted/60" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
             )}
-          </div>
+          >
+            <ComputerTower size={16} weight={isSrv ? "fill" : "regular"} />
+            <span className="flex-1 text-left font-heading tracking-wide">服务器</span>
+            <CaretDown size={10} className={cn("transition-transform", srvOpen && "rotate-180")} />
+          </button>
+          {srvOpen && (
+            <div className="pb-1">
+              {servers.length === 0 ? (
+                <div className="px-9 py-1.5 text-[11px] text-muted-foreground">暂无服务器</div>
+              ) : (
+                servers.map((s) => (
+                  <NavLink
+                    key={s.id}
+                    to={`/server/${s.id}`}
+                    onClick={() => setSrvOpen(false)}
+                    className={cn(
+                      "flex items-center gap-2 px-9 py-1.5 text-[11px] transition-colors",
+                      loc.pathname === `/server/${s.id}`
+                        ? "text-foreground bg-muted/50"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
+                    )}
+                  >
+                    <span className={cn("w-1 h-1 shrink-0 bg-current opacity-40")} />
+                    {s.name}
+                  </NavLink>
+                ))
+              )}
+              <NavLink
+                to="/settings"
+                onClick={() => setSrvOpen(false)}
+                className="flex items-center gap-2 px-9 py-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Plus size={10} /> 添加服务器
+              </NavLink>
+            </div>
+          )}
+        </div>
+
+        {/* Settings */}
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            cn(
+              "flex items-center gap-2.5 px-4 py-2 text-xs transition-colors border-t border-border/50",
+              isActive
+                ? "text-primary bg-muted/60"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+            )
+          }
+        >
+          {({ isActive }) => (
+            <>
+              {isActive && (
+                <span className="absolute left-0 top-[15%] bottom-[15%] w-[3px] bg-primary rounded-r-sm" />
+              )}
+              <GearSix size={16} weight={isActive ? "fill" : "regular"} />
+              <span className="font-heading tracking-wide">设置</span>
+            </>
+          )}
+        </NavLink>
+      </aside>
+
+      {/* ═══ 主区域 · Main area ═══ */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* ─── 顶栏 · Top bar ─── */}
+        <header className="flex items-center justify-end gap-2 h-12 px-4 sm:px-6 border-b border-border bg-background/80 relative z-10">
+          <ThemeToggle />
 
           {/* Alert bell */}
           <div className="relative shrink-0" ref={alertRef}>
-            <Button
-              variant="ghost"
-              size="icon-sm"
+            <button
+              type="button"
               onClick={() => { trackAction("导航", "查看通知"); setAlertOpen((v) => !v); }}
-              className="relative"
+              className="relative flex items-center justify-center w-7 h-7 text-foreground/50 hover:text-foreground transition-colors"
             >
-              <Bell size={16} />
+              <Bell size={14} />
               {unread > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">
+                <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-3.5 h-3.5 bg-primary text-primary-foreground text-[8px] font-bold">
                   {unread > 9 ? "9+" : unread}
                 </span>
               )}
-            </Button>
+            </button>
             {alertOpen && (
-              <div className="absolute top-full right-0 mt-1 w-80 rounded-lg border border-border bg-popover shadow-lg z-[60] max-h-96 flex flex-col">
+              <div className="absolute top-full right-0 mt-1 w-80 border border-border bg-popover z-[60] max-h-96 flex flex-col shadow-lg">
                 <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                  <span className="text-xs font-medium text-foreground">通知</span>
+                  <span className="text-xs font-heading text-foreground">通知</span>
                   {unread > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="xs"
+                    <button
+                      type="button"
                       onClick={() => {
                         trackAction("导航", "全部已读");
                         alertsApi.ackAll().then(() => {
@@ -354,9 +385,10 @@ export default function Layout() {
                           setUnread(0);
                         });
                       }}
+                      className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                     >
                       全部已读
-                    </Button>
+                    </button>
                   )}
                 </div>
                 <div className="overflow-y-auto flex-1">
@@ -378,9 +410,8 @@ export default function Layout() {
                           <div className="text-xs font-medium text-foreground truncate">{a.title}</div>
                           <div className="text-[11px] text-muted-foreground truncate">{a.message}</div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
+                        <button
+                          type="button"
                           onClick={() => {
                             trackAction("导航", "标记已读", a.title);
                             alertsApi.ack(a.id).then(() => {
@@ -388,9 +419,10 @@ export default function Layout() {
                               setUnread((u) => Math.max(0, u - 1));
                             });
                           }}
+                          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
                         >
                           <Check size={12} />
-                        </Button>
+                        </button>
                       </div>
                     ))
                   )}
@@ -398,11 +430,16 @@ export default function Layout() {
               </div>
             )}
           </div>
-        </div>
-      </header>
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 sm:py-6">
-        <Outlet />
-      </main>
+
+          {/* User menu */}
+          <UserMenu />
+        </header>
+
+        {/* ─── 内容 · Content ─── */}
+        <main className="flex-1 px-4 sm:px-6 py-4 sm:py-6 overflow-y-auto relative" style={{ zIndex: 1 }}>
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

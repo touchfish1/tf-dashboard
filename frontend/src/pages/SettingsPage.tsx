@@ -366,19 +366,21 @@ export default function SettingsPage() {
     trackAction("通知渠道", "测试发送", channelFormUrl.trim());
     setChannelTesting(true);
     try {
-      const res = await fetch(channelFormUrl.trim(), {
+      // Use backend endpoint for proper platform-specific formatting
+      const res = await fetch("/api/alerts/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: "这是一条来自 tf-dashboard 的测试通知",
-          title: "测试通知",
-          msgtype: "text",
+          url: channelFormUrl.trim(),
+          type: editingChannel?.type || channelFormType,
+          name: channelFormName.trim() || undefined,
         }),
       });
       if (res.ok) {
         toast("success", "测试消息已发送");
       } else {
-        toast("error", `发送失败 (HTTP ${res.status})`);
+        const body = await res.json().catch(() => ({}));
+        toast("error", body.error || `发送失败 (HTTP ${res.status})`);
       }
     } catch {
       toast("error", "发送失败，请检查 URL 是否正确");

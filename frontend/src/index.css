@@ -3,80 +3,159 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.theme-rubbing *));
 
-/* ══════════════════════════════════════════════
-   Dark theme — pink/magenta accent
-   ══════════════════════════════════════════════ */
-:root {
-  --background: oklch(0.13 0.003 300);
-  --foreground: oklch(0.96 0.003 300);
+/* ═══════════════════════════════════════════════════════
+   主题 · Theme: 宣纸 (Paper / Light)
+   ═══════════════════════════════════════════════════════ */
+.theme-paper {
+  --background: #f5f0e8;
+  --foreground: #1a1a18;
 
-  --card: oklch(0.16 0.004 300);
-  --card-foreground: oklch(0.96 0.003 300);
+  --card: #faf7f2;
+  --card-foreground: #1a1a18;
 
-  --popover: oklch(0.18 0.005 300);
-  --popover-foreground: oklch(0.96 0.003 300);
+  --popover: #f5f0e8;
+  --popover-foreground: #1a1a18;
 
-  --primary: oklch(0.65 0.22 346);
-  --primary-foreground: oklch(0.98 0 0);
+  --primary: #c23a2b;
+  --primary-foreground: #f5f0e8;
 
-  --secondary: oklch(0.24 0.006 300);
-  --secondary-foreground: oklch(0.94 0.006 300);
+  --secondary: #3c3732;
+  --secondary-foreground: #f5f0e8;
 
-  --muted: oklch(0.21 0.005 300);
-  --muted-foreground: oklch(0.65 0.01 300);
+  --muted: #e8e0d5;
+  --muted-foreground: #7d7468;
 
-  --accent: oklch(0.65 0.22 346);
-  --accent-foreground: oklch(0.98 0 0);
+  --accent: #c23a2b;
+  --accent-foreground: #f5f0e8;
 
-  --destructive: oklch(0.65 0.2 25);
-  --destructive-foreground: oklch(0.98 0 0);
+  --destructive: #c23a2b;
+  --destructive-foreground: #f5f0e8;
 
-  --border: oklch(0.25 0.006 300);
-  --input: oklch(0.28 0.008 300);
-  --ring: oklch(0.65 0.22 346);
+  --border: rgba(26, 26, 24, 0.12);
+  --input: rgba(26, 26, 24, 0.15);
+  --ring: #c23a2b;
 
-  --radius: 0.625rem;
+  --radius: 0.375rem;
 
-  /* Chart palette — vibrant across hues */
-  --chart-1: oklch(0.65 0.22 346);   /* pink */
-  --chart-2: oklch(0.6 0.18 220);    /* blue */
-  --chart-3: oklch(0.55 0.15 280);   /* purple */
-  --chart-4: oklch(0.6 0.18 190);    /* teal */
-  --chart-5: oklch(0.55 0.18 30);    /* orange */
+  --sidebar: #efe8db;
+  --sidebar-foreground: #1a1a18;
+  --sidebar-primary: #c23a2b;
+  --sidebar-primary-foreground: #f5f0e8;
+  --sidebar-accent: #e8e0d5;
+  --sidebar-accent-foreground: #1a1a18;
+  --sidebar-border: rgba(26, 26, 24, 0.10);
+  --sidebar-ring: #c23a2b;
 
-  /* Sidebar */
-  --sidebar: oklch(0.13 0.002 300);
-  --sidebar-foreground: oklch(0.88 0.006 300);
-  --sidebar-primary: oklch(0.65 0.22 346);
-  --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.2 0.005 300);
-  --sidebar-accent-foreground: oklch(0.94 0.006 300);
-  --sidebar-border: oklch(0.22 0.005 300);
-  --sidebar-ring: oklch(0.65 0.22 346);
+  --chart-1: #1a1a18;
+  --chart-2: #3c3732;
+  --chart-3: #7d7468;
+  --chart-4: #c23a2b;
+  --chart-5: #d4a017;
 }
 
+/* ═══════════════════════════════════════════════════════
+   主题 · Theme: 拓片 (Rubbing / Dark)
+   ═══════════════════════════════════════════════════════ */
+.theme-rubbing {
+  --background: #0d0d0b;
+  --foreground: #d4a764;
+
+  --card: #1a1815;
+  --card-foreground: #d4a764;
+
+  --popover: #1a1815;
+  --popover-foreground: #d4a764;
+
+  --primary: #c23a2b;
+  --primary-foreground: #0d0d0b;
+
+  --secondary: #d4a764;
+  --secondary-foreground: #0d0d0b;
+
+  --muted: #2a2520;
+  --muted-foreground: #8a7a60;
+
+  --accent: #c23a2b;
+  --accent-foreground: #0d0d0b;
+
+  --destructive: #c23a2b;
+  --destructive-foreground: #0d0d0b;
+
+  --border: rgba(212, 167, 100, 0.12);
+  --input: rgba(212, 167, 100, 0.15);
+  --ring: #c23a2b;
+
+  --radius: 0.375rem;
+
+  --sidebar: #141210;
+  --sidebar-foreground: #d4a764;
+  --sidebar-primary: #c23a2b;
+  --sidebar-primary-foreground: #0d0d0b;
+  --sidebar-accent: #2a2520;
+  --sidebar-accent-foreground: #d4a764;
+  --sidebar-border: rgba(212, 167, 100, 0.08);
+  --sidebar-ring: #c23a2b;
+
+  --chart-1: #d4a764;
+  --chart-2: #c23a2b;
+  --chart-3: #8a7a60;
+  --chart-4: #d4a017;
+  --chart-5: #6b5c4a;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Base
+   ═══════════════════════════════════════════════════════ */
 body {
   margin: 0;
-  font-family: "Geist Variable", system-ui, -apple-system, sans-serif;
+  font-family: "Geist Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Subtle texture overlay ── */
-.bg-noise {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.015'/%3E%3C/svg%3E");
+/* ─── 宣纸 background overlay ─── */
+.theme-paper::before,
+.theme-rubbing::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
 }
 
-/* ── Custom scrollbar ── */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: oklch(0.28 0.008 300); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: oklch(0.35 0.01 300); }
+.theme-paper::before {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.04'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.3'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+}
 
+.theme-rubbing::before {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='r'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.06'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23r)' opacity='0.15'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+}
+
+/* ─── Custom scrollbar ─── */
+.theme-paper ::-webkit-scrollbar { width: 4px; height: 4px; }
+.theme-paper ::-webkit-scrollbar-track { background: transparent; }
+.theme-paper ::-webkit-scrollbar-thumb { background: rgba(26, 26, 24, 0.15); border-radius: 2px; }
+.theme-paper ::-webkit-scrollbar-thumb:hover { background: rgba(26, 26, 24, 0.25); }
+
+.theme-rubbing ::-webkit-scrollbar { width: 4px; height: 4px; }
+.theme-rubbing ::-webkit-scrollbar-track { background: transparent; }
+.theme-rubbing ::-webkit-scrollbar-thumb { background: rgba(212, 167, 100, 0.15); border-radius: 2px; }
+.theme-rubbing ::-webkit-scrollbar-thumb:hover { background: rgba(212, 167, 100, 0.25); }
+
+/* ═══════════════════════════════════════════════════════
+   Tailwind theme tokens
+   ═══════════════════════════════════════════════════════ */
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: "Geist Variable", sans-serif;
+  --font-heading: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", serif;
+  --font-body: "Geist Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -125,7 +204,7 @@ body {
     @apply bg-background text-foreground;
   }
   html {
-    @apply font-sans;
+    @apply font-body;
   }
 }
 
@@ -137,4 +216,77 @@ body {
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* ═══════════════════════════════════════════════════════
+   水墨装饰 · Ink-wash decorations
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── 笔触分隔线 · Brush-stroke separator ─── */
+.ink-divider {
+  position: relative;
+  border: none;
+}
+.ink-divider::after {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 30%;
+  height: 1px;
+  background: linear-gradient(to right, currentColor, transparent);
+  opacity: 0.15;
+}
+
+/* ─── 朱砂活性指示 · Vermillion active indicator ─── */
+.ink-active {
+  position: relative;
+}
+.ink-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 15%;
+  bottom: 15%;
+  width: 3px;
+  background: #c23a2b;
+  border-radius: 0 2px 2px 0;
+}
+
+/* ─── 纸张卡片 · Paper card ─── */
+.ink-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+/* ─── 墨晕 hover · Ink bloom hover ─── */
+.ink-hover {
+  position: relative;
+  transition: background-color 0.2s;
+}
+.ink-hover:hover {
+  background: var(--muted);
+}
+
+/* ─── 印章 badge · Seal-style badge ─── */
+.seal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-family: "Songti SC", "STSong", serif;
+  letter-spacing: 0.05em;
+  border: 1px solid currentColor;
+  color: var(--primary);
+}
+
+.seal-badge--filled {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: transparent;
+}
+
+/* ─── Theme transition ─── */
+html, body, .theme-paper, .theme-rubbing {
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

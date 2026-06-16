@@ -13,7 +13,8 @@ type AuditAction =
   | "alert_rule.create" | "alert_rule.update" | "alert_rule.delete"
   | "notification_channels.update"
   | "upload.file"
-  | "auth.login" | "auth.change_password";
+  | "auth.login" | "auth.change_password"
+  | "user.create" | "user.update" | "user.delete";
 
 interface AuditInput {
   type: AuditType;

@@ -69,7 +69,7 @@ function formatDateTime(isoStr: string): string {
 
 // ─── Types ───────────────────────────────────────
 
-type TimeRange = 7 | 30 | 90;
+type TimeRange = 1 | 7 | 30 | 90;
 type SortKey =
   | "bucketStart"
   | "model"
@@ -352,6 +352,7 @@ const [error, setError] = useState<string | null>(null);
 const [retry, setRetry] = useState(0);
 const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir | null>(null);
   const [page, setPage] = useState(0);
@@ -361,16 +362,23 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   const PAGE_SIZE = 10;
 
+  const apiDays = useMemo(() => {
+    if (customRange?.from) {
+      return Math.max(1, Math.ceil((Date.now() - new Date(customRange.from).getTime()) / (1000 * 60 * 60 * 24)));
+    }
+    return days;
+  }, [days, customRange]);
+
   useEffect(() => {
     setLoading(true);
     setError(null);
     setPage(0);
     opencodeApi
-      .usageRaw(days, 200, debouncedSearch)
+      .usageRaw(apiDays, 200, debouncedSearch)
       .then((res) => { setData(res); setLastUpdate(new Date()); })
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [days, retry, debouncedSearch]);
+  }, [apiDays, retry, debouncedSearch]);
 
   // ── Derived data ─────────────────────────────
 
@@ -485,9 +493,18 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
     setPage(0);
   };
 
-  const handleTimeRange = (d: TimeRange) => {
-    trackAction("OpenCode", "切换时间范围", `${d}天`);
-    setDays(d);
+  const handleTimeRange = (d: TimeRange | 0) => {
+    trackAction("OpenCode", "切换时间范围", d === 0 ? "Custom" : `${d}天`);
+    if (d === 0) {
+      setDays(7);
+      const to = new Date();
+      const from = new Date();
+      from.setDate(from.getDate() - 7);
+      setCustomRange({ from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) });
+    } else {
+      setDays(d);
+      setCustomRange(null);
+    }
     setPage(0);
   };
 
@@ -536,18 +553,35 @@ const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
              placeholder="搜索模型/Agent..."
              className="h-7 w-32 rounded-md border border-border bg-transparent px-2 text-xs font-mono placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
            />
-           <div className="inline-flex gap-1 bg-muted rounded-lg p-0.5">
-          {([7, 30, 90] as TimeRange[]).map((d) => (
-            <Button
-              key={d}
-              variant={days === d ? "secondary" : "ghost"}
-              size="xs"
-              onClick={() => handleTimeRange(d)}
-            >
-              {d}d
-            </Button>
-          ))}
-          </div>
+            <div className="inline-flex gap-1 bg-muted rounded-lg p-0.5">
+              {[{ label: "24h", value: 1 as const }, { label: "7d", value: 7 as const }, { label: "30d", value: 30 as const }, { label: "90d", value: 90 as const }, { label: "Custom", value: 0 as const }].map((d) => (
+                <Button
+                  key={d.value}
+                  variant={(!customRange && days === d.value) || (d.value === 0 && customRange !== null) ? "secondary" : "ghost"}
+                  size="xs"
+                  onClick={() => handleTimeRange(d.value as TimeRange | 0)}
+                >
+                  {d.label}
+                </Button>
+              ))}
+              {customRange && (
+                <>
+                  <input
+                    type="date"
+                    value={customRange.from}
+                    onChange={(e) => setCustomRange(prev => prev ? { ...prev, from: e.target.value } : null)}
+                    className="h-7 w-[130px] rounded-md border border-border bg-transparent px-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <span className="text-xs text-muted-foreground">-</span>
+                  <input
+                    type="date"
+                    value={customRange.to}
+                    onChange={(e) => setCustomRange(prev => prev ? { ...prev, to: e.target.value } : null)}
+                    className="h-7 w-[130px] rounded-md border border-border bg-transparent px-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </>
+              )}
+              </div>
         </div>
       </header>
 

@@ -1,77 +1,105 @@
 # tf-dashboard
 
-Dashboard for LLM backend token usage (OpenCode + DeepSeek official APIs) and server information display.
+LLM Token 用量监控面板（OpenCode + DeepSeek），多服务器指标采集。
 
-## Status
+## 仓库结构
 
-**Greenfield.** Single commit (empty README). No tech stack chosen. No code written.
+Bun workspace monorepo（根 `package.json` 定义 workspaces）：
 
-## Purpose
+| workspace | 入口 | 端口 | 说明 |
+|---|---|---|---|
+| `agent/` | `agent/src/index.ts` | 9100 | Metrics Agent，部署在被监控服务器 |
+| `backend/` | `backend/src/index.ts` | 3000 | Hono API + 定时轮询器 + 前端静态资源 |
+| `frontend/` | React SPA via Vite | 5173 (dev) | shadcn/ui + @base-ui/react + Recharts |
+| `packages/shared/` | `@tf-dashboard/shared` | - | 类型/工具/API 客户端 |
+| `packages/mobile/` | Expo (RN) | - | 移动端 |
 
-- Display real-time token consumption from two sources:
-  - **OpenCode** LLM backend API
-  - **DeepSeek official API**
-- Display server/VM information (metrics, health, status)
+## 开发者命令
 
-## Available Skills (24)
+```bash
+bun run setup-db          # 创建/迁移 PostgreSQL 表
+bun run agent              # 启动 Metrics Agent
+bun run agent:dev          # agent 热重载模式
+bun run backend            # 启动后端 API
+bun run backend:dev        # 后端热重载模式 (--hot)
+bun run frontend:dev       # Vite dev server
+bun run frontend:build     # tsc + vite build
+bun run typecheck          # frontend → backend 依次 tsc --noEmit
+bun run lint               # biome check .
+bun run lint:fix           # biome check --apply .
+bun run test               # bun test (根 workspace)
+bun run test:backend       # bun test --cwd backend
+bun run test:frontend      # bun test --cwd frontend
+bun run ci                 # typecheck → test → frontend:build
+```
 
-All in `skills/`. Load on demand via `load_skills=["skill-name"]` when task matches description:
+**CI 流水线**：`bun run typecheck` → `bun run test` → `bun run frontend:build`（在 `package.json` 中定义为 `ci`）。
 
-| Skill | For |
-|---|---|
-| `api-and-interface-design` | REST/GraphQL endpoints, module boundaries, API contracts |
-| `frontend-ui-engineering` | UI components, layouts, production-quality frontend |
-| `browser-testing-with-devtools` | DOM inspection, console errors, network analysis |
-| `ci-cd-and-automation` | Pipeline setup, test runners, deployment |
-| `code-review-and-quality` | Pre-merge code review across multiple axes |
-| `code-simplification` | Refactoring for clarity without behavior change |
-| `context-engineering` | Agent context setup, rules files configuration |
-| `debugging-and-error-recovery` | Root-cause debugging |
-| `deprecation-and-migration` | Safe removal of old APIs/systems |
-| `documentation-and-adrs` | Architecture Decision Records, design docs |
-| `doubt-driven-development` | Adversarial review for correctness-critical decisions |
-| `git-workflow-and-versioning` | Branching, committing, resolving conflicts |
-| `idea-refine` | Vague idea → sharp concept |
-| `incremental-implementation` | Multi-file changes delivered in small steps |
-| `interview-me` | Extracting requirements via one-question-at-a-time |
-| `observability-and-instrumentation` | Logging, metrics, tracing |
-| `performance-optimization` | Core Web Vitals, load time, profiling |
-| `planning-and-task-breakdown` | Breaking specs into ordered tasks |
-| `security-and-hardening` | Auth, input handling, external integrations |
-| `shipping-and-launch` | Pre-launch checklist, rollout, rollback |
-| `source-driven-development` | Grounding implementation in official docs |
-| `spec-driven-development` | Creating specs before coding |
-| `test-driven-development` | TDD for logic and bug fixes |
-| `using-agent-skills` | Meta-skill for discovering what applies |
+## Biome（lint + format）
 
-## Environment
+- `indentStyle: space`, `indentWidth: 2`, `lineWidth: 140`
+- `quoteStyle: "double"`, `semicolons: "always"`
+- `noExplicitAny: off`, `noConsoleLog: off`, `noNonNullAssertion: off`
+- `organizeImports: disabled`（不要自动重排 import）
 
-- **OS**: Linux
-- **Node**: v22.22.2, npm 10.9.7
-- **Python**: 3.14.5
-- **GitHub remote**: `https://github.com/touchfish1/tf-dashboard.git`
+## 测试
 
-## Conventions
+- Runner: `bun test`（bun 内置，支持 `--cwd` 指定 workspace）
+- 前端 DOM 测试：`frontend/bunfig.toml` 中 `[test] dom = true`
+- 后端测试在 `backend/tests/`，前端测试在 `frontend/src/lib/*.test.ts`
+- 测试依赖 PostgreSQL 连接（部分测试可能跳过如 DB 不可用）
 
-- No conventions established yet — this is a greenfield project.
-- No linter, formatter, typechecker, or test framework configured.
-- No `.gitignore` exists yet.
-- User prefers Chinese for requirements; keep code comments and identifiers in English.
-- `skills/` directory contains OpenCode skill definitions (`.gitignore`-worthy candidate).
+## 后端架构要点
 
-## Architecture Guidance
+- **入口** `backend/src/index.ts`：挂载路由 → 注册中间件 → 启动轮询器 → 启动定时任务
+- **中间件顺序**：requestLogger → CORS → rateLimit → [auth/SSE/status 跳过 auth] → authMiddleware → cache → route handler
+- **认证**：GET 请求免认证（/api/settings, /api/auth 除外）；POST/PUT/DELETE 需要 JWT Bearer 或 `x-api-key` 头
+- **缓存**：内存缓存，按路由设置 TTL（`backend/src/index.ts:87-97`），轮询器更新时通过事件总线失效
+- **轮询器**：3 个定时器（servers/opencode/deepseek），间隔通过 `POLL_*_INTERVAL` 环境变量控制
+- **事件总线**：`backend/src/lib/event-bus.ts`，同步 pub/sub，用于 poller → alert engine → cache invalidation
+- **Pino 日志**：`LOG_LEVEL` 控制级别，dev 模式用 pino-pretty，可选 OpenObserve 远程传输
+- **数据清理**：server_metrics 30天 / deepseek 90天 / audit 90天 / alerts 30天（每日 03:00 Asia/Shanghai）
 
-- Will involve at least two external API integrations (OpenCode + DeepSeek).
-- Token usage data likely requires an API key / auth token for each provider.
-- Server info display suggests an agent or SSH-based collection mechanism.
-- No decisions have been made on: frontend framework, backend framework, data storage, deployment.
+## Agent 架构要点
 
-## Key Agents
+- 依赖 `opencode` CLI 二进制（通过 `Bun.spawnSync` 调用）提供 `/api/opencode/sessions`
+- Agent `/metrics` 返回系统指标（cpu/内存/磁盘/网络/OS/uptime）
+- `/api/opencode/sessions` 受 `?api_key=` 参数保护（通过 `OPENCODE_API_KEY` 环境变量启用）
 
-| Agent | When |
-|---|---|
-| `explore` | Find patterns, search codebase |
-| `librarian` | External docs, API references, GitHub examples |
-| `oracle` | Architecture decisions, hard debugging |
-| `metis` | Pre-planning, scope clarification |
-| `momus` | Plan review, quality assurance |
+## 前端架构要点
+
+- 路径别名 `@/` → `./src/`（`frontend/vite.config.ts` 和 `tsconfig.json` 中定义）
+- Vite dev server 代理 `/api`、`/health`、`/uploads` → `localhost:3000`
+- 生产环境：后端通过 `serveStatic` 在 `/*` 路由提供 `frontend/dist` 目录
+- Tailwind CSS v4（使用 `@tailwindcss/vite` 插件，不是 PostCSS 插件）
+- shadcn/ui 组件（`npx shadcn@latest add ...`），依赖 `@base-ui/react` primitives
+- Graph/library 拆分：`react-vendor`, `recharts-vendor`, `phosphor-icons` 在 vite 中手动 chunk
+
+## 关键环境变量
+
+| 变量 | 必填 | 说明 |
+|---|---|---|
+| `DATABASE_URL` | 是 | PostgreSQL 连接串（代码中有默认值硬编码） |
+| `DEEPSEEK_API_KEY` | 推荐 | 设置在 Settings 页面 |
+| `API_KEY` | 推荐 | 全局 API 认证密钥 |
+| `POLL_SERVERS_INTERVAL` | 否 | 默认 30s |
+| `POLL_OPENCODE_INTERVAL` | 否 | 默认 60s |
+| `POLL_DEEPSEEK_INTERVAL` | 否 | 默认 300s |
+| `OPENCODE_DB_PATH` | 否 | 本地 SQLite 路径 |
+
+完整清单见 `.env.example`。
+
+## 部署
+
+- Docker Compose（`docker-compose.yml`）：两个服务 `server`（3000）和 `agent`（9100）
+- server 镜像多阶段构建：builder 阶段编译前端，runtime 阶段只装 backend 生产依赖
+- agent 镜像：`bun install --frozen-lockfile --production`，纯生产模式
+- OpenObserve 可选部署：`deploy/openobserve/docker-compose.yml`
+
+## 约定
+
+- 需求用中文，代码注释和标识符用英文
+- `skills/`、`.omo/`、`.agents/` 是 OpenCode 技能目录，不应修改
+- `node_modules/`、`dist/`、`.env`、`*.db`、`uploads/`、`.omo/` 在 `.gitignore` 中
+- `backend/mobile-dist/`、`backend/mobile-web/` 在 `.gitignore` 中（Expo 产物）
+- 没有 `.github/workflows/` 文件——CI 尚未配置

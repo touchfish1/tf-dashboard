@@ -202,6 +202,28 @@ export interface ScheduledReport {
   createdAt: string;
 }
 
+// ─── Poller Health / Status ─────────────────────────
+
+export interface PollerStatus {
+  name: string;
+  lastRunAt: string | null;
+  lastSuccessAt: string | null;
+  lastError: string | null;
+  runCount: number;
+  errorCount: number;
+  isRunning: boolean;
+}
+
+export interface StatusResponse {
+  pollers: PollerStatus[];
+  uptime: number;
+  memoryUsage: {
+    rss: number;
+    heapTotal: number;
+    heapUsed: number;
+  };
+}
+
 // ─── Auth ────────────────────────────────────────
 
 export interface AuthUser {
@@ -214,4 +236,16 @@ export interface AuthUser {
 export interface LoginResponse {
   accessToken: string;
   user: AuthUser;
+}
+
+// ─── Users (admin management) ─────────────────────
+
+export interface User {
+  id: number;
+  email: string;
+  displayName: string;
+  role: "admin" | "viewer";
+  isActive: boolean;
+  createdAt: string;
+  lastLogin: string | null;
 }

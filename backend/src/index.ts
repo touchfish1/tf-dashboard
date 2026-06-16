@@ -26,18 +26,20 @@ import auditRoute from "./routes/audit";
 import sseRoute from "./routes/sse";
 import statusRoute from "./routes/status";
 import reportsRoute from "./routes/reports";
+import usersRoute from "./routes/users";
 import { createPoller } from "./lib/poller-health";
 import { cleanupOldData } from "./lib/cleanup";
 import { pollAllServers } from "./pollers/servers";
 import { pollOpenCodeUsage } from "./pollers/opencode";
 import { pollDeepSeekBalance } from "./pollers/deepseek";
-import { subscribe } from "./lib/event-bus";
+import { subscribe, emit } from "./lib/event-bus";
 import { evaluateEvent } from "./lib/alert-engine";
 import { startReportScheduler, reportCronJobs } from "./lib/reports";
 import { rateLimit, clearRateLimitCleanup } from "./middleware/rate-limit";
 import { cache, invalidateCache, clearCacheCleanup } from "./middleware/cache";
+import { eq, sql } from "drizzle-orm";
 import { db, client } from "./db";
-import { alertRules } from "./db/schema";
+import { alertRules, opencodeUsage, settings as settingsTable } from "./db/schema";
 
 const app = new Hono();
 
@@ -76,6 +78,9 @@ app.route("/api/status", statusRoute);
 
 // JWT + API key auth middleware for all remaining /api/* routes
 app.use("/api/*", authMiddleware);
+
+// User management routes (admin-only, after auth)
+app.route("/api/users", usersRoute);
 
 // ─── Caching (read-heavy GET endpoints) ─────────────────────────
 // Applied after auth, before route handlers. Only affects GET requests.
@@ -251,6 +256,32 @@ const cleanupCron = new Cron('0 3 * * *', { timezone: 'Asia/Shanghai' }, () => {
 });
 cronJobs.push(cleanupCron);
 logger.info({ event: 'cleanup_scheduled', schedule: '0 3 * * *' }, '数据清理任务已调度 (每天 03:00 Asia/Shanghai)');
+
+// Monthly budget check: run every hour, emit event for alert engine
+const budgetCheckCron = new Cron('0 * * * *', async () => {
+  try {
+    // Read budget setting
+    const [budgetRow] = await db.select().from(settingsTable).where(eq(settingsTable.key, 'monthly_budget')).limit(1);
+    const budget = parseFloat(budgetRow?.value || '0');
+    if (budget <= 0) return; // No budget configured
+
+    // Sum current month's OpenCode cost
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [costRow] = await db.select({
+      totalCost: sql<string>`COALESCE(SUM(cost::numeric), 0)`,
+    }).from(opencodeUsage)
+      .where(sql`bucket_start >= ${monthStart.toISOString()}`);
+    const currentCost = parseFloat(costRow?.totalCost || '0');
+    const usagePercent = budget > 0 ? Math.round((currentCost / budget) * 10000) / 100 : 0;
+
+    emit({ type: 'monthly_budget_check', currentCost, budget, usagePercent });
+  } catch (err) {
+    logger.warn({ err, event: 'budget_check_failed' }, '月度预算检查失败');
+  }
+});
+cronJobs.push(budgetCheckCron);
+logger.info({ event: 'budget_check_scheduled' }, '月度预算检查已调度 (每小时)');
 
 // ─── Graceful Shutdown ──────────────────────────────────────────
 function shutdown(signal: string) {

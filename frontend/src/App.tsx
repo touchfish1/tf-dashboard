@@ -14,7 +14,9 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 const AlertRulesPage = lazy(() => import("./pages/AlertRulesPage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
+const StatusPage = lazy(() => import("./pages/StatusPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const UsersPage = lazy(() => import("./pages/UsersPage"));
 
 function PageFallback() {
   return (
@@ -98,6 +100,7 @@ export default function App() {
                 <Route path="/deepseek" element={<Suspense fallback={<PageFallback />}><DeepSeekPage /></Suspense>} />
                 <Route path="/server" element={<Suspense fallback={<PageFallback />}><ServerPage /></Suspense>} />
                 <Route path="/server/:id" element={<Suspense fallback={<PageFallback />}><ServerPage /></Suspense>} />
+                <Route path="/status" element={<Suspense fallback={<PageFallback />}><StatusPage /></Suspense>} />
                 <Route path="/audit" element={<Suspense fallback={<PageFallback />}><AuditLogPage /></Suspense>} />
                 <Route path="/alerts/rules" element={<Suspense fallback={<PageFallback />}><AlertRulesPage /></Suspense>} />
                 <Route path="/reports" element={<Suspense fallback={<PageFallback />}><ReportsPage /></Suspense>} />
@@ -105,6 +108,7 @@ export default function App() {
                 {/* Settings — requires login */}
                 <Route element={<ProtectedLayout />}>
                   <Route path="/settings" element={<Suspense fallback={<PageFallback />}><SettingsPage /></Suspense>} />
+                  <Route path="/users" element={<Suspense fallback={<PageFallback />}><UsersPage /></Suspense>} />
                 </Route>
 
                 <Route path="*" element={<NotFound />} />

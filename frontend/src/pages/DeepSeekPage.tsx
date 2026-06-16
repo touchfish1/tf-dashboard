@@ -141,6 +141,8 @@ function BalanceCard({
 export default function DeepSeekPage() {
   const [balance, setBalance] = useState<DeepSeekBalance | null>(null);
   const [history, setHistory] = useState<DeepSeekBalance[]>([]);
+  const [days, setDays] = useState(30);
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -150,9 +152,12 @@ export default function DeepSeekPage() {
     try {
       if (isInitial) setLoading(true);
       setError(null);
+      const ad = customRange?.from
+        ? Math.max(1, Math.ceil((Date.now() - new Date(customRange.from).getTime()) / (1000 * 60 * 60 * 24)))
+        : days;
       const [bal, hist] = await Promise.all([
         deepseekApi.balance(),
-        deepseekApi.history(30),
+        deepseekApi.history(ad),
       ]);
       setBalance(bal);
       setHistory(hist);
@@ -166,7 +171,7 @@ export default function DeepSeekPage() {
     } finally {
       if (isInitial) setLoading(false);
     }
-  }, []);
+  }, [days, customRange]);
 
   // Load key status + initial data
   useEffect(() => {
@@ -287,9 +292,50 @@ export default function DeepSeekPage() {
   return (
     <div className="p-6 space-y-6">
       {/* ── Top Bar ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-xl font-semibold text-foreground">DeepSeek API</h1>
         <div className="flex items-center gap-2 text-sm">
+          <div className="flex gap-1 bg-muted rounded-lg p-0.5">
+            {[{ label: "24h", value: 1 }, { label: "7d", value: 7 }, { label: "30d", value: 30 }, { label: "90d", value: 90 }, { label: "Custom", value: 0 }].map((d) => (
+              <Button
+                key={d.value}
+                variant={(!customRange && days === d.value) || (d.value === 0 && customRange !== null) ? "secondary" : "ghost"}
+                size="xs"
+                onClick={() => {
+                  trackAction("DeepSeek", "切换时间范围", d.label);
+                  if (d.value === 0) {
+                    const to = new Date();
+                    const from = new Date();
+                    from.setDate(from.getDate() - 30);
+                    setCustomRange({ from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) });
+                    setDays(30);
+                  } else {
+                    setDays(d.value);
+                    setCustomRange(null);
+                  }
+                }}
+              >
+                {d.label}
+              </Button>
+            ))}
+            {customRange && (
+              <>
+                <input
+                  type="date"
+                  value={customRange.from}
+                  onChange={(e) => setCustomRange(prev => prev ? { ...prev, from: e.target.value } : null)}
+                  className="h-7 w-[130px] rounded-md border border-border bg-transparent px-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <span className="text-xs text-muted-foreground">-</span>
+                <input
+                  type="date"
+                  value={customRange.to}
+                  onChange={(e) => setCustomRange(prev => prev ? { ...prev, to: e.target.value } : null)}
+                  className="h-7 w-[130px] rounded-md border border-border bg-transparent px-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </>
+            )}
+          </div>
           <Badge variant="secondary" className="flex items-center gap-1.5 text-emerald-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             Live

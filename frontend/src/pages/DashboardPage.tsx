@@ -19,7 +19,21 @@ const DAYS = [
   { label: "24h", value: 1 },
   { label: "7d", value: 7 },
   { label: "30d", value: 30 },
+  { label: "90d", value: 90 },
+  { label: "Custom", value: 0 },
 ];
+
+function TrendArrow({ delta }: { delta: number | null }) {
+  if (delta === null || Math.abs(delta) < 0.01) return null;
+  const decreased = delta < 0;
+  const arrow = decreased ? "▲" : "▼";
+  const color = decreased ? "text-emerald-400" : "text-red-400";
+  return (
+    <span className={`text-xs font-mono ${color}`}>
+      {" "}{arrow} {Math.abs(delta).toFixed(1)}%
+    </span>
+  );
+}
 
 function fmt(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -75,6 +89,10 @@ export default function DashboardPage() {
   const [monthlyCost, setMonthlyCost] = useState(0);
   const [anomaly, setAnomaly] = useState<{ todayCost: number; avgCost: number; ratio: number; status: string } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [compare, setCompare] = useState(false);
+  const [prevPeriodData, setPrevPeriodData] = useState<{ cost: number; input: number; output: number } | null>(null);
+  const [currentPeriodCmp, setCurrentPeriodCmp] = useState<{ cost: number; input: number; output: number } | null>(null);
 
   // ── Listen for SSE-driven data update events ──
   useEffect(() => {
@@ -99,8 +117,11 @@ export default function DashboardPage() {
     setErrors([]);
     (async () => {
       const errs: string[] = [];
+      const apiDays = customRange?.from
+        ? Math.max(1, Math.ceil((Date.now() - new Date(customRange.from).getTime()) / (1000 * 60 * 60 * 24)))
+        : days || 7;
       const [sr, ur, bmr, balr, slr, lkr] = await Promise.allSettled([
-        opencodeApi.summary(), opencodeApi.usage(days), opencodeApi.byModel(days),
+        opencodeApi.summary(), opencodeApi.usage(apiDays), opencodeApi.byModel(apiDays),
         deepseekApi.balance(), serversApi.list(), linksApi.list(),
       ]);
       if (sr.status === "fulfilled") setSummary(sr.value); else errs.push("用量汇总加载失败");
@@ -128,13 +149,42 @@ export default function DashboardPage() {
       if (!cancel) setLoading(false);
     })();
     return () => { cancel = true; };
-  }, [days, refreshKey]);
+  }, [days, customRange, refreshKey]);
 
   // ── Prediction fetch ──
   useEffect(() => {
     opencodeApi.predict(30, 14).then(setPrediction).catch(() => {});
     opencodeApi.anomaly().then(setAnomaly).catch(() => {});
   }, [refreshKey]);
+
+  // ── Comparison period data fetch ──
+  useEffect(() => {
+    if (!compare) { setPrevPeriodData(null); setCurrentPeriodCmp(null); return; }
+    const apiDays = customRange?.from
+      ? Math.max(1, Math.ceil((Date.now() - new Date(customRange.from).getTime()) / (1000 * 60 * 60 * 24)))
+      : days || 7;
+    if (apiDays < 1) return;
+    opencodeApi.usage(apiDays * 2).then(data => {
+      const sorted = [...data].sort((a, b) => a.bucketStart.localeCompare(b.bucketStart));
+      let prevSum = 0, prevIn = 0, prevOut = 0;
+      let currSum = 0, currIn = 0, currOut = 0;
+      const now = Date.now();
+      const cutoffMs = now - apiDays * 24 * 60 * 60 * 1000;
+      for (const d of sorted) {
+        const ts = new Date(d.bucketStart).getTime();
+        const isPrev = customRange?.from
+          ? ts < new Date(customRange.from).getTime()
+          : ts < cutoffMs;
+        if (isPrev) {
+          prevSum += parseFloat(d.cost); prevIn += d.tokensInput; prevOut += d.tokensOutput;
+        } else {
+          currSum += parseFloat(d.cost); currIn += d.tokensInput; currOut += d.tokensOutput;
+        }
+      }
+      setPrevPeriodData({ cost: prevSum, input: prevIn, output: prevOut });
+      setCurrentPeriodCmp({ cost: currSum, input: currIn, output: currOut });
+    }).catch(() => { setPrevPeriodData(null); setCurrentPeriodCmp(null); });
+  }, [compare, days, customRange, refreshKey]);
 
   // ── Load dashboard config + budget (only when logged in) ──
   useEffect(() => {
@@ -167,6 +217,17 @@ export default function DashboardPage() {
   const totalOutput = summary ? fmt(summary.totalOutput) : "-";
   const balanceStr = balance ? yuan(balance.balanceTotal) : "-";
   const balancePositive = balance && parseFloat(balance.balanceTotal) > 0;
+
+  // ── Comparison deltas for trend arrows ──
+  const costDelta = compare && prevPeriodData && currentPeriodCmp && prevPeriodData.cost > 0
+    ? ((currentPeriodCmp.cost - prevPeriodData.cost) / prevPeriodData.cost * 100)
+    : null;
+  const inputDelta = compare && prevPeriodData && currentPeriodCmp && prevPeriodData.input > 0
+    ? ((currentPeriodCmp.input - prevPeriodData.input) / prevPeriodData.input * 100)
+    : null;
+  const outputDelta = compare && prevPeriodData && currentPeriodCmp && prevPeriodData.output > 0
+    ? ((currentPeriodCmp.output - prevPeriodData.output) / prevPeriodData.output * 100)
+    : null;
 
   if (loading) {
     return (
@@ -265,19 +326,57 @@ export default function DashboardPage() {
             {time}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
            <DashboardConfigPanel onConfigChange={(cfg) => { trackAction("仪表盘", "配置面板"); setCfg(cfg); }} />
-          <div className="flex gap-1 bg-muted rounded-lg p-0.5">
-            {DAYS.map(d => (
-              <Button
-                key={d.value}
-                variant={days === d.value ? "default" : "ghost"}
-                size="xs"
-                onClick={() => { trackAction("仪表盘", "切换时间范围", `${d.value}天`); setDays(d.value); }}
-              >
-                {d.label}
-              </Button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1 bg-muted rounded-lg p-0.5">
+              {DAYS.map(d => (
+                <Button
+                  key={d.value}
+                  variant={days === d.value ? "default" : "ghost"}
+                  size="xs"
+                  onClick={() => {
+                    trackAction("仪表盘", "切换时间范围", d.label);
+                    if (d.value === 0) {
+                      setDays(0);
+                      const to = new Date();
+                      const from = new Date();
+                      from.setDate(from.getDate() - 7);
+                      setCustomRange({ from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) });
+                    } else {
+                      setDays(d.value);
+                      setCustomRange(null);
+                    }
+                  }}
+                >
+                  {d.label}
+                </Button>
+              ))}
+            </div>
+            {days === 0 && customRange && (
+              <>
+                <input
+                  type="date"
+                  value={customRange.from}
+                  onChange={(e) => setCustomRange(prev => prev ? { ...prev, from: e.target.value } : null)}
+                  className="h-7 w-[140px] rounded-md border border-border bg-transparent px-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <span className="text-xs text-muted-foreground">-</span>
+                <input
+                  type="date"
+                  value={customRange.to}
+                  onChange={(e) => setCustomRange(prev => prev ? { ...prev, to: e.target.value } : null)}
+                  className="h-7 w-[140px] rounded-md border border-border bg-transparent px-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </>
+            )}
+            <Button
+              variant={compare ? "default" : "outline"}
+              size="xs"
+              onClick={() => { trackAction("仪表盘", "切换对比模式"); setCompare(!compare); }}
+            >
+              {compare ? "对比 ON" : "对比"}
+            </Button>
           </div>
         </div>
       </div>
@@ -336,7 +435,7 @@ export default function DashboardPage() {
               总费用
             </CardDescription>
             <CardTitle className="text-base font-mono font-semibold text-primary">
-              {totalCost}
+              {totalCost}<TrendArrow delta={costDelta} />
             </CardTitle>
           </CardHeader>
         </Card>
@@ -346,7 +445,7 @@ export default function DashboardPage() {
               输入 Token
             </CardDescription>
             <CardTitle className="text-base font-mono font-semibold">
-              {totalInput}
+              {totalInput}<TrendArrow delta={inputDelta} />
             </CardTitle>
           </CardHeader>
         </Card>
@@ -356,7 +455,7 @@ export default function DashboardPage() {
               输出 Token
             </CardDescription>
             <CardTitle className="text-base font-mono font-semibold">
-              {totalOutput}
+              {totalOutput}<TrendArrow delta={outputDelta} />
             </CardTitle>
           </CardHeader>
         </Card>

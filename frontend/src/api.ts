@@ -6,6 +6,7 @@ import type {
   AuditEntry,
   AlertRule,
   ScheduledReport,
+  User,
 } from "./types";
 import { trackApiCall } from "./lib/tracking";
 import { getAccessToken, setAccessToken } from "./auth";
@@ -248,9 +249,24 @@ export const dashboardConfigApi = {
   },
 };
 
+// ─── Status / Health ────────────────────────────────
+export const statusApi = {
+  get: () => get<StatusResponse>("/api/status"),
+};
+
 // ─── Reports ───────────────────────────────────────
 export const reportsApi = {
   list: (limit = 20) => get<ScheduledReport[]>('/api/reports', { limit: String(limit) }),
+};
+
+// ─── Users (admin management) ─────────────────────
+export const usersApi = {
+  list: () => get<User[]>("/api/users"),
+  create: (body: { email: string; password: string; displayName: string; role: string }) =>
+    post<User>("/users", body),
+  update: (id: number, body: { displayName?: string; role?: string; isActive?: boolean }) =>
+    patchReq<User>(`/users/${id}`, body),
+  remove: (id: number) => del(`/users/${id}`),
 };
 
 // ─── Settings ─────────────────────────────────────
