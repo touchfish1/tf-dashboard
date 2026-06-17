@@ -48,7 +48,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-zinc-950">
+    <SafeAreaView className="flex-1 bg-paper-dark">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
@@ -60,10 +60,10 @@ export default function LoginScreen() {
               <View className="w-14 h-14 rounded-2xl bg-accent items-center justify-center mb-4">
                 <Ionicons name="grid" size={28} color="#ffffff" />
               </View>
-              <Text className="text-2xl font-bold text-zinc-100 tracking-tight">
+              <Text className="text-2xl font-bold text-ink-dark tracking-tight">
                 tf-dashboard
               </Text>
-              <Text className="text-sm text-zinc-500 mt-1">
+              <Text className="text-sm text-ink-muted-dark mt-1">
                 登录以访问仪表盘
               </Text>
             </View>
@@ -72,11 +72,11 @@ export default function LoginScreen() {
             <View className="gap-4">
               {/* Email */}
               <View className="gap-1.5">
-                <Text className="text-xs font-medium text-zinc-400 ml-1">邮箱</Text>
+                <Text className="text-xs font-medium text-ink-muted-dark ml-1">邮箱</Text>
                 <TextInput
-                  className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 text-base text-zinc-100"
+                  className="bg-surface-dark border border-line-dark rounded-xl px-4 py-3.5 text-base text-ink-dark"
                   placeholder="admin@example.com"
-                  placeholderTextColor="#52525b"
+                  placeholderTextColor="#8a7a60"
                   value={email}
                   onChangeText={(v) => { setEmail(v); setError('') }}
                   autoCapitalize="none"
@@ -92,12 +92,12 @@ export default function LoginScreen() {
 
               {/* Password */}
               <View className="gap-1.5">
-                <Text className="text-xs font-medium text-zinc-400 ml-1">密码</Text>
+                <Text className="text-xs font-medium text-ink-muted-dark ml-1">密码</Text>
                 <TextInput
                   ref={passwordRef}
-                  className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 text-base text-zinc-100"
+                  className="bg-surface-dark border border-line-dark rounded-xl px-4 py-3.5 text-base text-ink-dark"
                   placeholder="输入密码"
-                  placeholderTextColor="#52525b"
+                  placeholderTextColor="#8a7a60"
                   value={password}
                   onChangeText={(v) => { setPassword(v); setError('') }}
                   secureTextEntry
@@ -131,7 +131,7 @@ export default function LoginScreen() {
             </View>
 
             {/* Footer */}
-            <Text className="text-xs text-zinc-600 text-center mt-12">
+            <Text className="text-xs text-ink-muted-dark/60 text-center mt-12">
               tf-dashboard v0.1.0
             </Text>
           </View>

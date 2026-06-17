@@ -88,6 +88,7 @@ app.use('/api/opencode/summary', cache(30));    // 30s TTL
 app.use('/api/opencode/usage', cache(15));      // 15s TTL
 app.use('/api/opencode/by-model', cache(30));   // 30s TTL
 app.use('/api/opencode/predict', cache(300));   // 5min TTL
+app.use('/api/opencode/anomaly', cache(60));    // 60s TTL
 app.use('/api/deepseek/balance', cache(15));    // 15s TTL
 app.use('/api/servers', cache(10));             // 10s TTL
 app.use('/api/servers/:id/metrics', cache(10)); // 10s TTL

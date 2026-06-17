@@ -10,9 +10,9 @@ export function Card({ variant = 'default', className, children, ...props }: Car
     <View
       className={cn(
         'rounded-card p-4',
-        variant === 'default' && 'bg-white dark:bg-surface-dark border border-line dark:border-line-dark',
+        variant === 'default' && 'bg-surface dark:bg-surface-dark border border-line dark:border-line-dark',
         variant === 'elevated' && 'bg-surface-elevated dark:bg-surface-elevated-dark',
-        variant === 'tinted' && 'bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30',
+        variant === 'tinted' && 'bg-[#fef2f2] dark:bg-[#7f1d1d]/20 border border-[#fecaca] dark:border-[#7f1d1d]/30',
         className,
       )}
       {...props}

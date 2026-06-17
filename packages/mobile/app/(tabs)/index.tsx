@@ -34,9 +34,9 @@ export default function DashboardScreen() {
   const onlineCount = servers?.filter((s) => s.isActive).length ?? 0
 
   return (
-    <SafeAreaView edges={['bottom']} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
+    <SafeAreaView edges={['bottom']} className="flex-1 bg-paper dark:bg-paper-dark">
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10b981" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#c23a2b" />}
         className="flex-1 px-4"
         contentContainerClassName="py-4 gap-5"
       >
@@ -53,8 +53,8 @@ export default function DashboardScreen() {
           <View className="flex-row items-center gap-2">
             <View className={`w-2 h-2 rounded-full ${isOnline ? 'bg-status-good' : 'bg-status-bad'}`} />
             <TouchableOpacity onPress={() => setAlertModalVisible(true)} activeOpacity={0.7}>
-              <View className="relative w-9 h-9 rounded-full bg-white dark:bg-surface-dark border border-line dark:border-line-dark items-center justify-center">
-                <Ionicons name="notifications-outline" size={18} color="#71717a" />
+              <View className="relative w-9 h-9 rounded-full bg-surface dark:bg-surface-dark border border-line dark:border-line-dark items-center justify-center">
+                <Ionicons name="notifications-outline" size={18} color="#7d7468" />
                 {unread && unread.count > 0 && (
                   <View className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-status-bad items-center justify-center">
                     <Text className="text-[9px] font-bold text-white">{unread.count > 9 ? '9+' : unread.count}</Text>
@@ -104,10 +104,10 @@ export default function DashboardScreen() {
               {links.slice(0, 6).map((link) => (
                 <TouchableOpacity
                   key={link.id}
-                  className="flex-row items-center gap-2 bg-white dark:bg-surface-dark border border-line dark:border-line-dark rounded-card-sm px-3.5 py-2.5"
+                  className="flex-row items-center gap-2 bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-card-sm px-3.5 py-2.5"
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="link-outline" size={14} color="#10b981" />
+                  <Ionicons name="link-outline" size={14} color="#c23a2b" />
                   <Text className="text-xs font-medium text-ink dark:text-ink-dark" numberOfLines={1}>
                     {link.title}
                   </Text>
@@ -130,7 +130,7 @@ export default function DashboardScreen() {
             </Card>
           ) : (
             <Card className="h-56 items-center justify-center">
-              <Ionicons name="stats-chart-outline" size={32} color="#a1a1aa" />
+              <Ionicons name="stats-chart-outline" size={32} color="#7d7468" />
               <Text className="text-sm text-ink-muted dark:text-ink-muted-dark mt-3">暂无数据</Text>
             </Card>
           )}
@@ -145,7 +145,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={server.id}
                   onPress={() => router.push(`/servers/${server.id}`)}
-                  className="flex-row items-center bg-white dark:bg-surface-dark border border-line dark:border-line-dark rounded-card-sm px-4 py-3.5 gap-3"
+                  className="flex-row items-center bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-card-sm px-4 py-3.5 gap-3"
                   activeOpacity={0.7}
                 >
                   <View className="w-2 h-2 rounded-full bg-status-good" />
@@ -153,7 +153,7 @@ export default function DashboardScreen() {
                     <Text className="text-sm font-medium text-ink dark:text-ink-dark">{server.name}</Text>
                     <Text className="text-[11px] text-ink-muted dark:text-ink-muted-dark" numberOfLines={1}>{server.metricsUrl}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="#a1a1aa" />
+                  <Ionicons name="chevron-forward" size={16} color="#7d7468" />
                 </TouchableOpacity>
               ))}
             </View>
@@ -193,7 +193,7 @@ export default function DashboardScreen() {
               <Ionicons
                 name={anomaly.status === 'anomaly' ? 'alert-circle' : 'checkmark-circle'}
                 size={22}
-                color={anomaly.status === 'anomaly' ? '#ef4444' : '#10b981'}
+                color={anomaly.status === 'anomaly' ? '#ef4444' : '#c23a2b'}
               />
               <View className="flex-1">
                 <Text className="text-sm font-medium text-ink dark:text-ink-dark">
@@ -213,11 +213,11 @@ export default function DashboardScreen() {
       {/* ─── Alerts Modal ─── */}
       <Modal visible={alertModalVisible} transparent animationType="slide" onRequestClose={() => setAlertModalVisible(false)}>
         <View className="flex-1 bg-black/40 justify-end">
-          <View className="bg-white dark:bg-zinc-900 rounded-t-2xl max-h-[60%] p-5 gap-3">
+          <View className="bg-surface dark:bg-surface-dark rounded-t-2xl max-h-[60%] p-5 gap-3">
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-base font-bold text-ink dark:text-ink-dark">通知</Text>
               <TouchableOpacity onPress={() => setAlertModalVisible(false)}>
-                <Ionicons name="close" size={20} color="#71717a" />
+                <Ionicons name="close" size={20} color="#7d7468" />
               </TouchableOpacity>
             </View>
 
@@ -239,7 +239,7 @@ export default function DashboardScreen() {
               </ScrollView>
             ) : (
               <View className="py-8 items-center">
-                <Ionicons name="notifications-off-outline" size={28} color="#71717a" />
+                <Ionicons name="notifications-off-outline" size={28} color="#7d7468" />
                 <Text className="text-sm text-ink-muted dark:text-ink-muted-dark mt-2">暂无通知</Text>
               </View>
             )}

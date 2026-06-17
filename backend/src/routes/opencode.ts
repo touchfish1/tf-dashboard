@@ -13,7 +13,8 @@ router.get("/summary", async (c) => {
     totalInput: sql<number>`COALESCE(SUM(tokens_input),0)`,
     totalOutput: sql<number>`COALESCE(SUM(tokens_output),0)`,
     totalSessions: sql<number>`COALESCE(SUM(session_count),0)`,
-  }).from(opencodeUsage);
+  }).from(opencodeUsage)
+    .where(sql`bucket_start >= NOW() - INTERVAL '90 days'`);
   return c.json(row);
 });
 

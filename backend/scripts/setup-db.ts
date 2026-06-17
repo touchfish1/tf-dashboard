@@ -261,6 +261,16 @@ async function setup() {
         ON alerts(created_at DESC);
     `;
 
+    // Performance indexes (2026-06-17)
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_opencode_bucket_start
+        ON opencode_usage(bucket_start);
+    `;
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_deepseek_recorded_at
+        ON deepseek_balance(recorded_at DESC);
+    `;
+
     await client.end();
     console.log("\n🎉 Database setup complete!");
   } catch (err) {

@@ -8,26 +8,30 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        paper: {
+          DEFAULT: '#f5f0e8',
+          dark: '#0d0d0b',
+        },
         accent: {
-          DEFAULT: '#10b981',
-          light: '#34d399',
-          dark: '#059669',
+          DEFAULT: '#c23a2b',
+          light: '#e05a4a',
+          dark: '#9a2e22',
         },
         surface: {
-          DEFAULT: '#ffffff',
-          dark: '#18181b',
-          elevated: '#fafafa',
-          'elevated-dark': '#27272a',
+          DEFAULT: '#faf7f2',
+          dark: '#1a1815',
+          elevated: '#f5f0e8',
+          'elevated-dark': '#141210',
         },
         ink: {
-          DEFAULT: '#18181b',
-          dark: '#f4f4f5',
-          muted: '#a1a1aa',
-          'muted-dark': '#71717a',
+          DEFAULT: '#1a1a18',
+          dark: '#d4a764',
+          muted: '#7d7468',
+          'muted-dark': '#8a7a60',
         },
         line: {
-          DEFAULT: '#e4e4e7',
-          dark: '#3f3f46',
+          DEFAULT: '#d4cdc0',
+          dark: '#2a2520',
         },
         status: {
           good: '#10b981',

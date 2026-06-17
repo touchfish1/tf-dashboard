@@ -20,9 +20,9 @@ export default function DeepSeekScreen() {
   const currencySymbol = balance?.currency === 'CNY' ? '¥' : '$'
 
   return (
-    <SafeAreaView edges={['bottom']} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
+    <SafeAreaView edges={['bottom']} className="flex-1 bg-paper dark:bg-paper-dark">
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10b981" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#c23a2b" />}
         className="flex-1 px-4"
         contentContainerClassName="py-4 gap-5"
       >
@@ -39,7 +39,7 @@ export default function DeepSeekScreen() {
           </Card>
         ) : balance ? (
           <Card variant="tinted" className="items-center py-6 gap-2">
-            <Text className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">账户余额</Text>
+            <Text className="text-[11px] font-medium text-accent uppercase tracking-widest">账户余额</Text>
             <Text className="text-[44px] font-bold text-ink dark:text-ink-dark tracking-tight" adjustsFontSizeToFit numberOfLines={1}>
               {currencySymbol}{balanceNum.toFixed(2)}
             </Text>
@@ -82,7 +82,7 @@ export default function DeepSeekScreen() {
             </Card>
           ) : (
             <Card className="h-56 items-center justify-center">
-              <Ionicons name="pulse-outline" size={32} color="#a1a1aa" />
+              <Ionicons name="pulse-outline" size={32} color="#7d7468" />
               <Text className="text-sm text-ink-muted dark:text-ink-muted-dark mt-3">暂无数据</Text>
             </Card>
           )}
@@ -93,7 +93,7 @@ export default function DeepSeekScreen() {
           <SectionHeader title="余额记录" />
           {history && history.length > 0 ? (
             <Card className="gap-0 p-0 overflow-hidden">
-              <View className="flex-row px-4 py-2.5 border-b border-line dark:border-line-dark bg-zinc-50 dark:bg-zinc-900/50">
+              <View className="flex-row px-4 py-2.5 border-b border-line dark:border-line-dark bg-line/30 dark:bg-line-dark/30">
                 <Text className="flex-[2] text-[10px] text-ink-muted dark:text-ink-muted-dark uppercase tracking-wider font-medium">时间</Text>
                 <Text className="flex-1 text-[10px] text-ink-muted dark:text-ink-muted-dark uppercase tracking-wider text-right font-medium">余额</Text>
               </View>

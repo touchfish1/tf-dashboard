@@ -38,6 +38,7 @@ export const opencodeUsage = pgTable("opencode_usage", {
   sessionCount: integer("session_count").default(0),
 }, (table) => ({
   uniqueBucket: uniqueIndex("idx_opencode_unique_bucket").on(table.bucketStart, table.model, table.agent),
+  bucketStartIdx: index("idx_opencode_bucket_start").on(table.bucketStart),
 }));
 
 // ─── DeepSeek balance snapshots ──────────────────────────────────
@@ -48,7 +49,9 @@ export const deepseekBalance = pgTable("deepseek_balance", {
   balanceGranted: decimal("balance_granted", { precision: 12, scale: 2 }),
   balanceToppedUp: decimal("balance_topped_up", { precision: 12, scale: 2 }),
   currency: text("currency").default("CNY"),
-});
+}, (table) => ({
+  recordedAtIdx: index("idx_deepseek_recorded_at").on(table.recordedAt),
+}));
 
 // ─── Key-value settings store ────────────────────────────────────
 export const settings = pgTable("settings", {

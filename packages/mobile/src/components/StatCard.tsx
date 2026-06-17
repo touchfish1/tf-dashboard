@@ -18,8 +18,8 @@ export function StatCard({ icon, label, value, sub, trend, trendValue, accent }:
   return (
     <Card variant={accent ? 'tinted' : 'default'} className="gap-1.5">
       <View className="flex-row items-center justify-between">
-        <View className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/30 items-center justify-center">
-          <Ionicons name={icon} size={16} color={accent ? '#059669' : '#10b981'} />
+        <View className="w-9 h-9 rounded-full bg-[#fee2e2] dark:bg-[#7f1d1d]/30 items-center justify-center">
+          <Ionicons name={icon} size={16} color={accent ? '#c23a2b' : '#c23a2b'} />
         </View>
         {trend && (
           <View className="flex-row items-center gap-0.5">

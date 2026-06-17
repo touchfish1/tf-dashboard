@@ -17,7 +17,7 @@ interface CacheEntry {
 }
 
 const store = new Map<string, CacheEntry>();
-const MAX_CACHE_ENTRIES = 500;
+const MAX_CACHE_ENTRIES = 2000;
 
 // Cleanup expired entries every 5 minutes
 const cleanupInterval = setInterval(() => {
@@ -47,6 +47,9 @@ export function cache(ttlSeconds: number) {
     const entry = store.get(key);
 
     if (entry && entry.expiresAt > Date.now()) {
+      // LRU: re-insert to move to end of Map (most recently used)
+      store.delete(key);
+      store.set(key, entry);
       // Cache hit
       c.header("X-Cache", "HIT");
       c.header("Cache-Control", `public, max-age=${ttlSeconds}`);
@@ -56,7 +59,7 @@ export function cache(ttlSeconds: number) {
     // Cache miss — intercept c.json to capture response data
     const originalJson = c.json.bind(c);
     c.json = ((data: unknown, ...args: any[]) => {
-      // Evict oldest entry if at capacity (FIFO eviction)
+      // LRU eviction — delete oldest if at capacity
       if (store.size >= MAX_CACHE_ENTRIES) {
         const oldest = store.keys().next().value;
         if (oldest) store.delete(oldest);

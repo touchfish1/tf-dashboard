@@ -1,9 +1,9 @@
-/** Chart color palette — matches tailwind theme */
+/** Chart color palette — ink-wash theme (matches web: 朱砂 vermillion + 墨 ink) */
 export const CHART_COLORS = {
-  primary: '#10b981',
-  primaryLight: '#34d399',
-  secondary: '#3b82f6',
-  secondaryLight: '#60a5fa',
+  primary: '#c23a2b',
+  primaryLight: '#e05a4a',
+  secondary: '#d4a764',
+  secondaryLight: '#e0b87a',
   warn: '#f59e0b',
   danger: '#ef4444',
   purple: '#8b5cf6',
@@ -24,13 +24,13 @@ export const PALETTE_CATEGORICAL = [
   CHART_COLORS.orange,
 ] as const
 
-/** Theme tokens for chart components (Skia-based) */
+/** Theme tokens for chart components */
 export function chartTheme(isDark: boolean) {
   return {
     axis: {
-      label: { color: isDark ? '#a1a1aa' : '#71717a' },
-      grid: { color: isDark ? '#27272a' : '#e4e4e7' },
-      tick: { color: isDark ? '#a1a1aa' : '#71717a' },
+      label: { color: isDark ? '#8a7a60' : '#7d7468' },
+      grid: { color: isDark ? '#2a2520' : '#d4cdc0' },
+      tick: { color: isDark ? '#8a7a60' : '#7d7468' },
     },
     line: {
       stroke: { color: CHART_COLORS.primary },

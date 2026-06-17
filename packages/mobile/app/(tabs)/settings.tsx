@@ -137,9 +137,9 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView edges={['bottom']} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
+    <SafeAreaView edges={['bottom']} className="flex-1 bg-paper dark:bg-paper-dark">
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10b981" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#c23a2b" />}
         className="flex-1 px-4"
         contentContainerClassName="py-4 gap-6"
       >
@@ -162,8 +162,8 @@ export default function SettingsScreen() {
                   <Text className="text-sm font-semibold text-ink dark:text-ink-dark">{user.displayName}</Text>
                   <Text className="text-xs text-ink-muted dark:text-ink-muted-dark">{user.email}</Text>
                 </View>
-                <View className="px-2.5 py-1 rounded-full bg-accent/10">
-                  <Text className="text-xs font-medium text-accent">
+                  <View className="px-2.5 py-1 rounded-full bg-[#c23a2b]/10">
+                    <Text className="text-xs font-medium text-accent">
                     {user.role === 'admin' ? '管理员' : '查看者'}
                   </Text>
                 </View>
@@ -183,9 +183,9 @@ export default function SettingsScreen() {
               activeOpacity={0.7}
               className="flex-row items-center gap-3 px-4 py-4"
             >
-              <Ionicons name="log-in-outline" size={18} color="#10b981" />
+              <Ionicons name="log-in-outline" size={18} color="#c23a2b" />
               <Text className="text-sm text-accent font-medium flex-1">登录以访问完整功能</Text>
-              <Ionicons name="chevron-forward" size={14} color="#a1a1aa" />
+              <Ionicons name="chevron-forward" size={14} color="#7d7468" />
             </TouchableOpacity>
           )}
         </Section>
@@ -212,6 +212,34 @@ export default function SettingsScreen() {
           />
         </Section>
 
+        <Section title="系统管理">
+          <SettingRow
+            icon="shield-checkmark-outline"
+            label="操作审计"
+            value="操作记录"
+            onPress={() => router.push('/audit')}
+          />
+          <SettingRow
+            icon="notifications-outline"
+            label="告警规则"
+            value="条件与通知"
+            onPress={() => router.push('/alert-rules')}
+          />
+          <SettingRow
+            icon="document-text-outline"
+            label="报告历史"
+            value="定时报告"
+            onPress={() => router.push('/reports')}
+          />
+          <SettingRow
+            icon="people-outline"
+            label="用户管理"
+            value="管理员与查看者"
+            onPress={() => router.push('/users')}
+            last
+          />
+        </Section>
+
         <Section title="关于">
           <SettingRow icon="information-circle-outline" label="版本" value="0.1.0" />
           <SettingRow icon="server-outline" label="后端状态" value={apiUrl} />
@@ -231,8 +259,8 @@ export default function SettingsScreen() {
         <Section title="定期报告">
           <View className="flex-row items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark">
             <Text className="text-sm text-ink dark:text-ink-dark">启用报告</Text>
-            <TouchableOpacity onPress={() => setReportEnabled(!reportEnabled)}>
-              <View className={`w-10 h-6 rounded-full ${reportEnabled ? 'bg-accent' : 'bg-zinc-300 dark:bg-zinc-700'} justify-center px-0.5`}>
+              <TouchableOpacity onPress={() => setReportEnabled(!reportEnabled)}>
+                <View className={`w-10 h-6 rounded-full ${reportEnabled ? 'bg-accent' : 'bg-line dark:bg-line-dark'} justify-center px-0.5`}>
                 <View className={`w-5 h-5 rounded-full bg-white shadow-sm ${reportEnabled ? 'self-end' : 'self-start'}`} />
               </View>
             </TouchableOpacity>
@@ -241,11 +269,11 @@ export default function SettingsScreen() {
             <>
               <View className="flex-row items-center px-4 py-3 border-b border-line dark:border-line-dark">
                 <Text className="flex-1 text-sm text-ink dark:text-ink-dark">日报时间</Text>
-                <TextInput value={reportDailyTime} onChangeText={setReportDailyTime} className="text-sm font-mono text-ink dark:text-ink-dark bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded" placeholder="08:00" />
+                <TextInput value={reportDailyTime} onChangeText={setReportDailyTime} className="text-sm font-mono text-ink dark:text-ink-dark bg-line dark:bg-line-dark px-2 py-1 rounded" placeholder="08:00" />
               </View>
               <View className="flex-row items-center px-4 py-3 border-b border-line dark:border-line-dark">
                 <Text className="flex-1 text-sm text-ink dark:text-ink-dark">周报时间</Text>
-                <TextInput value={reportWeeklyTime} onChangeText={setReportWeeklyTime} className="text-sm font-mono text-ink dark:text-ink-dark bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded" placeholder="09:00" />
+                <TextInput value={reportWeeklyTime} onChangeText={setReportWeeklyTime} className="text-sm font-mono text-ink dark:text-ink-dark bg-line dark:bg-line-dark px-2 py-1 rounded" placeholder="09:00" />
               </View>
               <TouchableOpacity onPress={handleSaveReport} className="px-4 py-3 items-center" activeOpacity={0.7}>
                 <Text className="text-sm font-medium text-accent">保存报告设置</Text>
@@ -260,18 +288,18 @@ export default function SettingsScreen() {
       {/* Channel Modal */}
       <Modal visible={channelModalVisible} transparent animationType="slide" onRequestClose={() => setChannelModalVisible(false)}>
         <View className="flex-1 bg-black/40 justify-end">
-          <View className="bg-white dark:bg-zinc-900 rounded-t-2xl max-h-[70%] p-5 gap-3">
+          <View className="bg-surface dark:bg-surface-dark rounded-t-2xl max-h-[70%] p-5 gap-3">
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-base font-bold text-ink dark:text-ink-dark">通知渠道</Text>
               <TouchableOpacity onPress={() => setChannelModalVisible(false)}>
-                <Ionicons name="close" size={20} color="#71717a" />
+                <Ionicons name="close" size={20} color="#7d7468" />
               </TouchableOpacity>
             </View>
 
             <ScrollView className="flex-1">
               {notificationChannels.length === 0 ? (
                 <View className="py-6 items-center">
-                  <Ionicons name="notifications-off-outline" size={24} color="#71717a" />
+                  <Ionicons name="notifications-off-outline" size={24} color="#7d7468" />
                   <Text className="text-sm text-ink-muted dark:text-ink-muted-dark mt-2">暂无通知渠道</Text>
                 </View>
               ) : (
@@ -297,16 +325,16 @@ export default function SettingsScreen() {
                   <TextInput
                     value={channelName}
                     onChangeText={setChannelName}
-                    className="bg-zinc-100 dark:bg-zinc-800 rounded-card-sm px-3 py-2 text-sm text-ink dark:text-ink-dark"
+                    className="bg-line dark:bg-line-dark rounded-card-sm px-3 py-2 text-sm text-ink dark:text-ink-dark"
                     placeholder="名称"
-                    placeholderTextColor="#71717a"
+                    placeholderTextColor="#7d7468"
                   />
                   <TextInput
                     value={channelUrl}
                     onChangeText={setChannelUrl}
-                    className="bg-zinc-100 dark:bg-zinc-800 rounded-card-sm px-3 py-2 text-sm text-ink dark:text-ink-dark"
+                      className="bg-line dark:bg-line-dark rounded-card-sm px-3 py-2 text-sm text-ink dark:text-ink-dark"
                     placeholder="Webhook URL"
-                    placeholderTextColor="#71717a"
+                    placeholderTextColor="#7d7468"
                     autoCapitalize="none"
                   />
                   <View className="flex-row gap-1.5 flex-wrap">
@@ -314,7 +342,7 @@ export default function SettingsScreen() {
                       <TouchableOpacity
                         key={t}
                         onPress={() => setChannelType(t)}
-                        className={`px-2.5 py-1 rounded-full border ${channelType === t ? 'bg-accent border-accent' : 'bg-zinc-100 dark:bg-zinc-800 border-line dark:border-line-dark'}`}
+                        className={`px-2.5 py-1 rounded-full border ${channelType === t ? 'bg-accent border-accent' : 'bg-line dark:bg-line-dark border-line dark:border-line-dark'}`}
                       >
                         <Text className={`text-[10px] ${channelType === t ? 'text-white' : 'text-ink-muted dark:text-ink-muted-dark'}`}>
                           {t === 'slack' ? 'Slack' : t === 'feishu' ? '飞书' : t === 'dingtalk' ? '钉钉' : t === 'wecom' ? '企微' : '通用'}
@@ -339,14 +367,14 @@ export default function SettingsScreen() {
       {/* Edit Modal */}
       <Modal visible={!!editModal} transparent animationType="fade" onRequestClose={() => setEditModal(null)}>
         <View className="flex-1 bg-black/40 justify-center px-6">
-          <View className="bg-white dark:bg-zinc-900 rounded-card p-5 gap-4">
+          <View className="bg-surface dark:bg-surface-dark rounded-card p-5 gap-4">
             <Text className="text-base font-semibold text-ink dark:text-ink-dark">
               {editModal?.label}
             </Text>
             <TextInput
-              className="bg-zinc-100 dark:bg-zinc-800 rounded-card-sm px-4 py-3 text-sm text-ink dark:text-ink-dark"
+              className="bg-line dark:bg-line-dark rounded-card-sm px-4 py-3 text-sm text-ink dark:text-ink-dark"
               placeholder={editModal?.placeholder}
-              placeholderTextColor="#71717a"
+              placeholderTextColor="#7d7468"
               value={editValue}
               onChangeText={setEditValue}
               secureTextEntry={editModal?.secure}
@@ -357,7 +385,7 @@ export default function SettingsScreen() {
             <View className="flex-row gap-3 justify-end">
               <TouchableOpacity
                 onPress={() => setEditModal(null)}
-                className="px-5 py-2.5 rounded-full bg-zinc-100 dark:bg-zinc-800"
+                className="px-5 py-2.5 rounded-full bg-line dark:bg-line-dark"
               >
                 <Text className="text-sm text-ink-muted dark:text-ink-muted-dark font-medium">取消</Text>
               </TouchableOpacity>
@@ -395,7 +423,7 @@ function SettingRow({
 }) {
   const content = (
     <View className={`flex-row items-center gap-3 px-4 py-3.5 ${!last ? 'border-b border-line dark:border-line-dark' : ''}`}>
-      <Ionicons name={icon} size={18} color="#71717a" />
+      <Ionicons name={icon} size={18} color="#7d7468" />
       <Text className="flex-1 text-sm text-ink dark:text-ink-dark">{label}</Text>
       <Text className="text-xs text-ink-muted dark:text-ink-muted-dark max-w-[140px]" numberOfLines={1}>{value}</Text>
       {onPress && <Ionicons name="chevron-forward" size={14} color="#a1a1aa" />}

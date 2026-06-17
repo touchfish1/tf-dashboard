@@ -115,9 +115,9 @@ export default function RootLayout() {
   if (!ready || (authLoading && !useAuth.getState().token)) {
     return (
       <SafeAreaProvider>
-        <View className="flex-1 bg-zinc-950 items-center justify-center">
-          <ActivityIndicator size="large" color="#10b981" />
-          <Text className="text-zinc-500 text-sm mt-3">加载中...</Text>
+        <View className="flex-1 bg-paper-dark items-center justify-center">
+          <ActivityIndicator size="large" color="#c23a2b" />
+          <Text className="text-ink-muted-dark text-sm mt-3">加载中...</Text>
         </View>
       </SafeAreaProvider>
     )
@@ -131,6 +131,10 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="servers/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="audit" options={{ headerShown: false }} />
+          <Stack.Screen name="alert-rules" options={{ headerShown: false }} />
+          <Stack.Screen name="reports" options={{ headerShown: false }} />
+          <Stack.Screen name="users" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>
       </QueryClientProvider>

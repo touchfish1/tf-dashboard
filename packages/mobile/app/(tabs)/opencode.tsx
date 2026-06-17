@@ -25,9 +25,9 @@ export default function OpenCodeScreen() {
   const { data: byModel } = useOpenCodeByModel(days)
 
   return (
-    <SafeAreaView edges={['bottom']} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
+    <SafeAreaView edges={['bottom']} className="flex-1 bg-paper dark:bg-paper-dark">
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10b981" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#c23a2b" />}
         className="flex-1 px-4"
         contentContainerClassName="py-4 gap-5"
       >
@@ -47,7 +47,7 @@ export default function OpenCodeScreen() {
               className={`px-4 py-2 rounded-full border ${
                 days === r.days
                   ? 'bg-accent border-accent'
-                  : 'bg-white dark:bg-surface-dark border-line dark:border-line-dark'
+                  : 'bg-surface dark:bg-surface-dark border-line dark:border-line-dark'
               }`}
             >
               <Text className={`text-xs font-medium ${days === r.days ? 'text-white' : 'text-ink-muted dark:text-ink-muted-dark'}`}>
@@ -60,7 +60,7 @@ export default function OpenCodeScreen() {
         {/* ─── Summary ─── */}
         <View className="flex-row gap-3">
           <Card variant="tinted" className="flex-1 gap-1">
-            <Text className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">总费用</Text>
+            <Text className="text-[10px] font-medium text-accent uppercase tracking-wider">总费用</Text>
             <Text className="text-[24px] font-bold text-ink dark:text-ink-dark" adjustsFontSizeToFit numberOfLines={1}>
               {summary ? formatCost(summary.totalCost) : '—'}
             </Text>
@@ -95,7 +95,7 @@ export default function OpenCodeScreen() {
                       <Text className="text-xs font-medium text-ink dark:text-ink-dark" numberOfLines={1}>
                         {m.model.split('/').pop()}
                       </Text>
-                      <View className="h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 mt-1 overflow-hidden">
+                      <View className="h-1.5 rounded-full bg-line dark:bg-line-dark mt-1 overflow-hidden">
                         <View className="h-full rounded-full bg-accent" style={{ width: `${Math.max(pct, 2)}%` }} />
                       </View>
                     </View>
@@ -124,7 +124,7 @@ export default function OpenCodeScreen() {
             </Card>
           ) : (
             <Card className="h-56 items-center justify-center">
-              <Ionicons name="trending-up-outline" size={32} color="#a1a1aa" />
+              <Ionicons name="trending-up-outline" size={32} color="#7d7468" />
               <Text className="text-sm text-ink-muted dark:text-ink-muted-dark mt-3">暂无数据</Text>
             </Card>
           )}
@@ -135,7 +135,7 @@ export default function OpenCodeScreen() {
           <SectionHeader title="最近记录" />
           {usage && usage.length > 0 ? (
             <Card className="gap-0 p-0 overflow-hidden">
-              <View className="flex-row px-4 py-2.5 border-b border-line dark:border-line-dark bg-zinc-50 dark:bg-zinc-900/50">
+              <View className="flex-row px-4 py-2.5 border-b border-line dark:border-line-dark bg-line/30 dark:bg-line-dark/30">
                 <Text className="flex-[2] text-[10px] text-ink-muted dark:text-ink-muted-dark uppercase tracking-wider font-medium">日期</Text>
                 <Text className="flex-1 text-[10px] text-ink-muted dark:text-ink-muted-dark uppercase tracking-wider text-right font-medium">Input</Text>
                 <Text className="flex-1 text-[10px] text-ink-muted dark:text-ink-muted-dark uppercase tracking-wider text-right font-medium">Output</Text>

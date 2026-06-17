@@ -9,4 +9,4 @@ export type {
   PredictionTrend,
 } from './opencode'
 export type { DeepSeekBalance } from './deepseek'
-export type { NavLink, Alert, DashboardConfig, DashboardSection } from './misc'
+export type { NavLink, Alert, DashboardConfig, DashboardSection, AuditEntry, RuleCondition, AlertRule, ScheduledReport, User } from './misc'

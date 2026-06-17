@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, memo, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { opencodeApi, deepseekApi, serversApi, linksApi, dashboardConfigApi, settingsApi } from "../api";
@@ -23,7 +23,7 @@ const DAYS = [
   { label: "Custom", value: 0 },
 ];
 
-function TrendArrow({ delta }: { delta: number | null }) {
+const TrendArrow = memo(function TrendArrow({ delta }: { delta: number | null }) {
   if (delta === null || Math.abs(delta) < 0.01) return null;
   const decreased = delta < 0;
   const arrow = decreased ? "▲" : "▼";
@@ -33,7 +33,7 @@ function TrendArrow({ delta }: { delta: number | null }) {
       {" "}{arrow} {Math.abs(delta).toFixed(1)}%
     </span>
   );
-}
+});
 
 function fmt(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -55,7 +55,7 @@ function getTimeStr(): string {
   return new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
 }
 
-function MiniBar({ label, value, color }: { label: string; value: string; color: string }) {
+const MiniBar = memo(function MiniBar({ label, value, color }: { label: string; value: string; color: string }) {
   const pct = Math.min(parseFloat(value), 100);
   return (
     <div className="flex items-center gap-2">
@@ -69,7 +69,7 @@ function MiniBar({ label, value, color }: { label: string; value: string; color:
       </span>
     </div>
   );
-}
+});
 
 export default function DashboardPage() {
   const [days, setDays] = useState(7);
@@ -94,14 +94,18 @@ export default function DashboardPage() {
   const [prevPeriodData, setPrevPeriodData] = useState<{ cost: number; input: number; output: number } | null>(null);
   const [currentPeriodCmp, setCurrentPeriodCmp] = useState<{ cost: number; input: number; output: number } | null>(null);
 
-  // ── Listen for SSE-driven data update events ──
+  // ── Listen for SSE-driven data update events (debounced) ──
   useEffect(() => {
-    function handler(e: Event) {
-      const detail = (e as CustomEvent).detail as { type: string } | undefined;
-      if (detail) setRefreshKey((k) => k + 1);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    function handler() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setRefreshKey((k) => k + 1), 500);
     }
     window.addEventListener("tf:data-update", handler);
-    return () => window.removeEventListener("tf:data-update", handler);
+    return () => {
+      window.removeEventListener("tf:data-update", handler);
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   // ── Clock tick ──

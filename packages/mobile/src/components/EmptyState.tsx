@@ -10,8 +10,8 @@ interface EmptyStateProps {
 export function EmptyState({ icon = 'cube-outline', title, message }: EmptyStateProps) {
   return (
     <View className="items-center justify-center py-12 px-8">
-      <View className="w-14 h-14 rounded-full bg-zinc-100 dark:bg-zinc-800 items-center justify-center mb-4">
-        <Ionicons name={icon} size={24} color="#a1a1aa" />
+      <View className="w-14 h-14 rounded-full bg-line dark:bg-line-dark items-center justify-center mb-4">
+        <Ionicons name={icon} size={24} color="#7d7468" />
       </View>
       <Text className="text-base font-medium text-ink-muted dark:text-ink-muted-dark mb-1 text-center">
         {title}
